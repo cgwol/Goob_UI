@@ -98,6 +98,43 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const hide = () => document.body.classList.add("cursor-hidden");
+    const show = () => document.body.classList.remove("cursor-hidden");
+
+    // Hide when using keyboard or gamepad
+    const onKey = () => hide();
+    window.addEventListener("keydown", onKey);
+
+    let raf = 0;
+    const poll = () => {
+      const pads = navigator.getGamepads?.() ?? [];
+      const pad = Array.from(pads).find((p) => p?.connected);
+      if (pad) {
+        const moved =
+          Math.abs(pad.axes[0] ?? 0) > 0.4 ||
+          Math.abs(pad.axes[1] ?? 0) > 0.4 ||
+          pad.buttons.some((b) => b.pressed);
+        if (moved) hide();
+      }
+      raf = requestAnimationFrame(poll);
+    };
+    raf = requestAnimationFrame(poll);
+
+    // Show again on any mouse activity
+    window.addEventListener("mousemove", show);
+    window.addEventListener("mousedown", show);
+    window.addEventListener("wheel", show);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousemove", show);
+      window.removeEventListener("mousedown", show);
+      window.removeEventListener("wheel", show);
+    };
+  }, []);
+
   return (
     <div
       style={{

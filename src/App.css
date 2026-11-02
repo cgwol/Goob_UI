@@ -1,10 +1,14 @@
 html, body {
-  /* cursor: none; */
   overflow: hidden;
   margin: 0;
   padding: 0;
   height: 100vh;
   background: #111;
+}
+
+body.cursor-hidden,
+body.cursor-hidden * {
+  cursor: none !important;
 }
 
 .logo.vite:hover {
