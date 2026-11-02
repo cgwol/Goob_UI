@@ -1,50 +1,68 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
+import { useEffect, useState } from "react";
+
+const TILES = ["Games", "Apps", "Settings", "Library"];
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [focused, setFocused] = useState(0);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  // Keyboard Support
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        setFocused((f) => (f - 1 + TILES.length) % TILES.length);
+      }
+      if (e.key === "ArrowRight") {
+        setFocused((f) => (f + 1) % TILES.length);
+      }
+      if (e.key === "Enter" || e.key === " ") {
+        console.log("Selected:", TILES[focused]);
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focused]);
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <div
+      style={{
+        width: "100vw",
+        height: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "2rem",
+        background: "#111",
+        color: "white",
+        fontFamily: "system-ui",
+      }}
+    >
+      {TILES.map((label, i) => (
+        <div
+          key={label}
+          onMouseEnter={() => setFocused(i)}
+          onClick={() => console.log("Selected:", label)}
+          style={{
+            width: 180,
+            height: 180,
+            borderRadius: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.4rem",
+            fontWeight: 600,
+            background: i === focused ? "#1e90ff" : "#2a2a2a",
+            transform: i === focused ? "scale(1.15)" : "scale(1)",
+            boxShadow: i === focused ? "0 0 30px #1e90ff88" : "none",
+            transition: "all 0.15s ease",
+            cursor: "pointer",
+          }}
+        >
+          {label}
+        </div>
+      ))}
+    </div>
   );
 }
 
