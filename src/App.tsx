@@ -1,50 +1,179 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
+import { useEffect, useState, useRef } from "react";
+
+const TILES = ["Games", "Apps", "Settings", "Library"];
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [focused, setFocused] = useState(0);
+  const focusedRef = useRef(focused);
+  focusedRef.current = focused;
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  // Keyboard Support
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        setFocused((f) => (f - 1 + TILES.length) % TILES.length);
+      }
+      if (e.key === "ArrowRight") {
+        setFocused((f) => (f + 1) % TILES.length);
+      }
+      if (e.key === "Enter" || e.key === " ") {
+        console.log("Selected:", TILES[focused]);
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focused]);
+
+  // Gamepad support
+  useEffect(() => {
+    let alive = true;
+    let raf = 0;
+    let prevLeft = false;
+    let prevRight = false;
+    let prevCross = false;
+    let holdDir: "left" | "right" | null = null;
+    let holdSince = 0;
+    let lastFire = 0;
+    const HOLD_DELAY = 420;
+    const REPEAT = 180;
+
+    const move = (dir: "left" | "right") => {
+      setFocused((f) =>
+        dir === "left"
+          ? (f - 1 + TILES.length) % TILES.length
+          : (f + 1) % TILES.length,
+      );
+    };
+
+    const tick = () => {
+      if (!alive) return;
+      const pads = navigator.getGamepads?.() ?? [];
+      const pad = Array.from(pads).find((p) => p?.connected) ?? null;
+
+      if (pad) {
+        const x = pad.axes[0] ?? 0;
+        const left = x < -0.6 || !!pad.buttons[14]?.pressed;
+        const right = x > 0.6 || !!pad.buttons[15]?.pressed;
+        const cross = !!pad.buttons[0]?.pressed;
+        const now = performance.now();
+
+        const active =
+          left && !right ? "left" : right && !left ? "right" : null;
+
+        if (active !== holdDir) {
+          holdDir = active;
+          holdSince = now;
+          lastFire = now;
+          if (active) move(active);
+        } else if (
+          active &&
+          now - holdSince >= HOLD_DELAY &&
+          now - lastFire >= REPEAT
+        ) {
+          lastFire = now;
+          move(active);
+        }
+
+        if (cross && !prevCross) {
+          console.log("Selected:", TILES[focusedRef.current]);
+        }
+
+        prevLeft = left;
+        prevRight = right;
+        prevCross = cross;
+      } else {
+        prevLeft = prevRight = prevCross = false;
+        holdDir = null;
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  useEffect(() => {
+    const hide = () => document.body.classList.add("cursor-hidden");
+    const show = () => document.body.classList.remove("cursor-hidden");
+
+    // Hide when using keyboard or gamepad
+    const onKey = () => hide();
+    window.addEventListener("keydown", onKey);
+
+    let raf = 0;
+    const poll = () => {
+      const pads = navigator.getGamepads?.() ?? [];
+      const pad = Array.from(pads).find((p) => p?.connected);
+      if (pad) {
+        const moved =
+          Math.abs(pad.axes[0] ?? 0) > 0.4 ||
+          Math.abs(pad.axes[1] ?? 0) > 0.4 ||
+          pad.buttons.some((b) => b.pressed);
+        if (moved) hide();
+      }
+      raf = requestAnimationFrame(poll);
+    };
+    raf = requestAnimationFrame(poll);
+
+    // Show again on any mouse activity
+    window.addEventListener("mousemove", show);
+    window.addEventListener("mousedown", show);
+    window.addEventListener("wheel", show);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousemove", show);
+      window.removeEventListener("mousedown", show);
+      window.removeEventListener("wheel", show);
+    };
+  }, []);
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <div
+      style={{
+        width: "100vw",
+        height: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "2rem",
+        background: "#111",
+        color: "white",
+        fontFamily: "system-ui",
+      }}
+    >
+      {TILES.map((label, i) => (
+        <div
+          key={label}
+          onMouseEnter={() => setFocused(i)}
+          onClick={() => console.log("Selected:", label)}
+          style={{
+            width: 180,
+            height: 180,
+            borderRadius: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.4rem",
+            fontWeight: 600,
+            background: i === focused ? "#1e90ff" : "#2a2a2a",
+            transform: i === focused ? "scale(1.15)" : "scale(1)",
+            boxShadow: i === focused ? "0 0 30px #1e90ff88" : "none",
+            transition: "all 0.15s ease",
+            cursor: "pointer",
+          }}
+        >
+          {label}
+        </div>
+      ))}
+    </div>
   );
 }
 
