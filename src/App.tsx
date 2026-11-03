@@ -1,14 +1,18 @@
 import "./App.css";
 import { useEffect, useState, useRef } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
+import { Page } from "./pages/Page";
 
 const TILES = ["Games", "Apps", "Settings"];
 
-function App() {
+function Home() {
   const [focused, setFocused] = useState(0);
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
+  const navigate = useNavigate();
 
-  // Keyboard Support
+  const open = () => navigate("/" + TILES[focusedRef.current].toLowerCase());
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") {
@@ -17,21 +21,15 @@ function App() {
       if (e.key === "ArrowRight") {
         setFocused((f) => (f + 1) % TILES.length);
       }
-      if (e.key === "Enter" || e.key === " ") {
-        console.log("Selected:", TILES[focused]);
-      }
+      if (e.key === "Enter" || e.key === " ") open();
     };
-
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focused]);
+  }, []);
 
-  // Gamepad support
   useEffect(() => {
     let alive = true;
     let raf = 0;
-    let prevLeft = false;
-    let prevRight = false;
     let prevCross = false;
     let holdDir: "left" | "right" | null = null;
     let holdSince = 0;
@@ -49,8 +47,7 @@ function App() {
 
     const tick = () => {
       if (!alive) return;
-      const pads = navigator.getGamepads?.() ?? [];
-      const pad = Array.from(pads).find((p) => p?.connected) ?? null;
+      const pad = Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected) ?? null;
 
       if (pad) {
         const x = pad.axes[0] ?? 0;
@@ -59,32 +56,22 @@ function App() {
         const cross = !!pad.buttons[0]?.pressed;
         const now = performance.now();
 
-        const active =
-          left && !right ? "left" : right && !left ? "right" : null;
+        const active = left && !right ? "left" : right && !left ? "right" : null;
 
         if (active !== holdDir) {
           holdDir = active;
           holdSince = now;
           lastFire = now;
           if (active) move(active);
-        } else if (
-          active &&
-          now - holdSince >= HOLD_DELAY &&
-          now - lastFire >= REPEAT
-        ) {
+        } else if (active && now - holdSince >= HOLD_DELAY && now - lastFire >= REPEAT) {
           lastFire = now;
           move(active);
         }
 
-        if (cross && !prevCross) {
-          console.log("Selected:", TILES[focusedRef.current]);
-        }
-
-        prevLeft = left;
-        prevRight = right;
+        if (cross && !prevCross) open();
         prevCross = cross;
       } else {
-        prevLeft = prevRight = prevCross = false;
+        prevCross = false;
         holdDir = null;
       }
 
@@ -98,19 +85,15 @@ function App() {
     };
   }, []);
 
-  // Cursor Logic
   useEffect(() => {
     const hide = () => document.body.classList.add("cursor-hidden");
     const show = () => document.body.classList.remove("cursor-hidden");
-
-    // Hide when using keyboard or gamepad
     const onKey = () => hide();
     window.addEventListener("keydown", onKey);
 
     let raf = 0;
     const poll = () => {
-      const pads = navigator.getGamepads?.() ?? [];
-      const pad = Array.from(pads).find((p) => p?.connected);
+      const pad = Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected);
       if (pad) {
         const moved =
           Math.abs(pad.axes[0] ?? 0) > 0.4 ||
@@ -122,7 +105,6 @@ function App() {
     };
     raf = requestAnimationFrame(poll);
 
-    // Show again on any mouse activity
     window.addEventListener("mousemove", show);
     window.addEventListener("mousedown", show);
     window.addEventListener("wheel", show);
@@ -141,13 +123,9 @@ function App() {
       <header className="topbar">
         <span className="brand">Home</span>
         <span className="clock">
-          {new Date().toLocaleTimeString([], {
-            hour: "numeric",
-            minute: "2-digit",
-          })}
+          {new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
         </span>
       </header>
-
       <div className="row">
         {TILES.map((label, i) => (
           <button
@@ -155,7 +133,7 @@ function App() {
             type="button"
             className={i === focused ? "tile focused" : "tile"}
             onMouseEnter={() => setFocused(i)}
-            onClick={() => console.log("Selected:", label)}
+            onClick={() => navigate("/" + label.toLowerCase())}
           >
             <span className="tile-label">{label}</span>
           </button>
@@ -165,4 +143,13 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/games" element={<Page title="Games" />} />
+      <Route path="/apps" element={<Page title="Apps" />} />
+      <Route path="/settings" element={<Page title="Settings" />} />
+    </Routes>
+  );
+}
