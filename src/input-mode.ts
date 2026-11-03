@@ -33,7 +33,9 @@ export function useInputMode() {
   useEffect(() => {
     const update = () => setTick((n) => n + 1);
     listeners.add(update);
-    return () => listeners.delete(update);
+    return () => {
+      listeners.delete(update);
+    };
   }, []);
   return { mode, padKind };
 }
