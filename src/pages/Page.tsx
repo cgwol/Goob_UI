@@ -81,6 +81,12 @@ export function Page({ title }: { title: string }) {
           {menuIcon && <span className="keycap">{menuIcon}</span>}
           {title}
         </span>
+        <span className="clock">
+          {new Date().toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </span>
       </header>
       <button type="button" className="back" onClick={() => navigate("/")}>
         {backIcon && <span className="keycap">{backIcon}</span>}
