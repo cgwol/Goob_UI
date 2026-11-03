@@ -2,6 +2,7 @@ import "./App.css";
 import { useEffect, useState, useRef } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { Page } from "./pages/Page";
+import { SideMenu } from "./components/SideMenu";
 
 const TILES = ["Games", "Apps", "Settings"];
 
@@ -10,11 +11,19 @@ function Home() {
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuOpenRef = useRef(menuOpen);
+  menuOpenRef.current = menuOpen;
 
   const open = () => navigate("/" + TILES[focusedRef.current].toLowerCase());
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (!menuOpenRef.current) setMenuOpen(true);
+        return;
+      }
+      if (menuOpenRef.current) return;
       if (e.key === "ArrowLeft") {
         setFocused((f) => (f - 1 + TILES.length) % TILES.length);
       }
@@ -31,6 +40,8 @@ function Home() {
     let alive = true;
     let raf = 0;
     let prevCross = false;
+    let prevMenu = false;
+    let armed = false;
     let holdDir: "left" | "right" | null = null;
     let holdSince = 0;
     let lastFire = 0;
@@ -47,31 +58,50 @@ function Home() {
 
     const tick = () => {
       if (!alive) return;
-      const pad = Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected) ?? null;
+      const pad =
+        Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected) ??
+        null;
 
       if (pad) {
         const x = pad.axes[0] ?? 0;
         const left = x < -0.6 || !!pad.buttons[14]?.pressed;
         const right = x > 0.6 || !!pad.buttons[15]?.pressed;
         const cross = !!pad.buttons[0]?.pressed;
+        const circle = !!pad.buttons[1]?.pressed;
+        const ps = !!pad.buttons[16]?.pressed;
+        const start = !!pad.buttons[9]?.pressed;
         const now = performance.now();
 
-        const active = left && !right ? "left" : right && !left ? "right" : null;
+        if (!menuOpenRef.current) {
+          const active =
+            left && !right ? "left" : right && !left ? "right" : null;
 
-        if (active !== holdDir) {
-          holdDir = active;
-          holdSince = now;
-          lastFire = now;
-          if (active) move(active);
-        } else if (active && now - holdSince >= HOLD_DELAY && now - lastFire >= REPEAT) {
-          lastFire = now;
-          move(active);
+          if (active !== holdDir) {
+            holdDir = active;
+            holdSince = now;
+            lastFire = now;
+            if (active) move(active);
+          } else if (
+            active &&
+            now - holdSince >= HOLD_DELAY &&
+            now - lastFire >= REPEAT
+          ) {
+            lastFire = now;
+            move(active);
+          }
+
+          if (cross && !prevCross) open();
         }
 
-        if (cross && !prevCross) open();
+        if (!circle && !ps && !start) armed = true;
+        if (armed && !menuOpenRef.current && (circle || ps || start) && !prevMenu) {
+          setMenuOpen(true);
+        }
         prevCross = cross;
+        prevMenu = circle || ps || start;
       } else {
         prevCross = false;
+        prevMenu = false;
         holdDir = null;
       }
 
@@ -93,7 +123,9 @@ function Home() {
 
     let raf = 0;
     const poll = () => {
-      const pad = Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected);
+      const pad = Array.from(navigator.getGamepads?.() ?? []).find(
+        (p) => p?.connected,
+      );
       if (pad) {
         const moved =
           Math.abs(pad.axes[0] ?? 0) > 0.4 ||
@@ -121,9 +153,14 @@ function Home() {
   return (
     <div className="shell">
       <header className="topbar">
-        <span className="brand">Home</span>
+        <span className="brand" onClick={() => setMenuOpen(true)}>
+          Home
+        </span>
         <span className="clock">
-          {new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+          {new Date().toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })}
         </span>
       </header>
       <div className="row">
@@ -139,6 +176,7 @@ function Home() {
           </button>
         ))}
       </div>
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   );
 }
