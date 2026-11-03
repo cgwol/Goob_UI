@@ -100,3 +100,44 @@ html, body, #root {
 .brand {
   cursor: pointer;
 }
+
+.brand,
+.back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  height: 52px;
+  padding: 0 1.25rem;
+  border: none;
+  border-radius: 14px;
+  background: #1c2129;
+  color: #f3efe6;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.brand:hover,
+.back:hover,
+.brand:focus-visible,
+.back:focus-visible {
+  transform: scale(1.06);
+  background: #243041;
+  box-shadow: 0 0 0 3px #e2a15a, 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4em;
+  height: 1.4em;
+  margin-right: 0.5rem;
+  padding: 0 0.35rem;
+  border-radius: 6px;
+  background: #0e1014;
+  box-shadow: inset 0 0 0 1px #e2a15a;
+  font-size: 0.85em;
+}

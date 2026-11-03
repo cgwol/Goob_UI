@@ -1,10 +1,76 @@
 import "./App.css";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { Page } from "./pages/Page";
 import { SideMenu } from "./components/SideMenu";
+import { setInputMode, useInputMode } from "./input-mode";
 
 const TILES = ["Games", "Apps", "Settings"];
+
+function useCursorMode() {
+  useEffect(() => {
+    const hide = () => document.body.classList.add("cursor-hidden");
+    const show = () => document.body.classList.remove("cursor-hidden");
+
+    const onKey = () => {
+      setInputMode("keyboard"); 
+      hide();
+    };
+    const onMouse = (e: MouseEvent) => {
+      if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) {
+        setInputMode("mouse"); 
+        show();
+      }
+    };
+    const onMouseDown = () => {
+      setInputMode("mouse"); 
+      show();
+    };
+    const onWheel = () => {
+      setInputMode("mouse"); 
+      show();
+    };
+
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousemove", onMouse);
+    window.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("wheel", onWheel);
+
+    let alive = true;
+    let raf = 0;
+    let prev = "";
+
+    const tick = () => {
+      if (!alive) return;
+      const pad = Array.from(navigator.getGamepads?.() ?? []).find(
+        (p) => p?.connected,
+      );
+      if (pad) {
+        const x = pad.axes[0] ?? 0;
+        const y = pad.axes[1] ?? 0;
+        const stick = Math.abs(x) > 0.6 || Math.abs(y) > 0.6;
+        const pressed = pad.buttons.some((b) => b.pressed);
+        const now = `${stick}:${pressed}`;
+        if (now !== prev && (stick || pressed)) {
+          setInputMode("gamepad", pad.id); // CHANGE
+          hide();
+        }
+        prev = now;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousemove", onMouse);
+      window.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("wheel", onWheel);
+    };
+  }, []);
+}
 
 function Home() {
   const [focused, setFocused] = useState(0);
@@ -14,6 +80,16 @@ function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuOpenRef = useRef(menuOpen);
   menuOpenRef.current = menuOpen;
+  const { mode, padKind } = useInputMode();
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const menuIcon =
+    mode === "keyboard"
+      ? "Esc"
+      : mode === "gamepad" && padKind === "playstation"
+        ? "OPTIONS"
+        : mode === "gamepad"
+          ? "☰"
+          : "";
 
   const open = () => navigate("/" + TILES[focusedRef.current].toLowerCase());
 
@@ -94,7 +170,12 @@ function Home() {
         }
 
         if (!circle && !ps && !start) armed = true;
-        if (armed && !menuOpenRef.current && (circle || ps || start) && !prevMenu) {
+        if (
+          armed &&
+          !menuOpenRef.current &&
+          (circle || ps || start) &&
+          !prevMenu
+        ) {
           setMenuOpen(true);
         }
         prevCross = cross;
@@ -115,45 +196,11 @@ function Home() {
     };
   }, []);
 
-  useEffect(() => {
-    const hide = () => document.body.classList.add("cursor-hidden");
-    const show = () => document.body.classList.remove("cursor-hidden");
-    const onKey = () => hide();
-    window.addEventListener("keydown", onKey);
-
-    let raf = 0;
-    const poll = () => {
-      const pad = Array.from(navigator.getGamepads?.() ?? []).find(
-        (p) => p?.connected,
-      );
-      if (pad) {
-        const moved =
-          Math.abs(pad.axes[0] ?? 0) > 0.4 ||
-          Math.abs(pad.axes[1] ?? 0) > 0.4 ||
-          pad.buttons.some((b) => b.pressed);
-        if (moved) hide();
-      }
-      raf = requestAnimationFrame(poll);
-    };
-    raf = requestAnimationFrame(poll);
-
-    window.addEventListener("mousemove", show);
-    window.addEventListener("mousedown", show);
-    window.addEventListener("wheel", show);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousemove", show);
-      window.removeEventListener("mousedown", show);
-      window.removeEventListener("wheel", show);
-    };
-  }, []);
-
   return (
     <div className="shell">
       <header className="topbar">
         <span className="brand" onClick={() => setMenuOpen(true)}>
+          {menuIcon && <span className="keycap">{menuIcon}</span>}
           Home
         </span>
         <span className="clock">
@@ -176,12 +223,13 @@ function Home() {
           </button>
         ))}
       </div>
-      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <SideMenu open={menuOpen} onClose={closeMenu} />
     </div>
   );
 }
 
 export default function App() {
+  useCursorMode();
   return (
     <Routes>
       <Route path="/" element={<Home />} />

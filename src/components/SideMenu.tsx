@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
+import { useInputMode } from "../input-mode";
 
 const ITEMS = ["Home", "Settings", "Close"] as const;
 const POWER = ["Minimize", "Close app", "Sleep", "Power off"] as const;
@@ -20,6 +21,15 @@ export function SideMenu({
   const powerRef = useRef(powerOpen);
   focusedRef.current = focused;
   powerRef.current = powerOpen;
+  const { mode, padKind } = useInputMode();
+  const menuIcon =
+    mode === "keyboard"
+      ? "Esc"
+      : mode === "gamepad" && padKind === "playstation"
+        ? "OPTIONS"
+        : mode === "gamepad"
+          ? "☰"
+          : "";
 
   const items = powerOpen ? POWER : ITEMS;
 
@@ -34,7 +44,8 @@ export function SideMenu({
     if (label === "Minimize") await getCurrentWindow().minimize();
     if (label === "Close app") await getCurrentWindow().close();
     if (label === "Sleep") await invoke("system_action", { action: "sleep" });
-    if (label === "Power off") await invoke("system_action", { action: "shutdown" });
+    if (label === "Power off")
+      await invoke("system_action", { action: "shutdown" });
     onClose();
   };
 
@@ -55,12 +66,19 @@ export function SideMenu({
         onClose();
       }
       if (e.key === "ArrowUp") {
-        setFocused((f) => (f - 1 + (powerRef.current ? POWER.length : ITEMS.length)) % (powerRef.current ? POWER.length : ITEMS.length));
+        setFocused(
+          (f) =>
+            (f - 1 + (powerRef.current ? POWER.length : ITEMS.length)) %
+            (powerRef.current ? POWER.length : ITEMS.length),
+        );
       }
       if (e.key === "ArrowDown") {
-        setFocused((f) => (f + 1) % (powerRef.current ? POWER.length : ITEMS.length));
+        setFocused(
+          (f) => (f + 1) % (powerRef.current ? POWER.length : ITEMS.length),
+        );
       }
-      if (e.key === "Enter") choose((powerRef.current ? POWER : ITEMS)[focusedRef.current]);
+      if (e.key === "Enter")
+        choose((powerRef.current ? POWER : ITEMS)[focusedRef.current]);
     };
     window.addEventListener("keydown", onKey);
 
@@ -74,7 +92,9 @@ export function SideMenu({
 
     const tick = () => {
       if (!alive) return;
-      const pad = Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected);
+      const pad = Array.from(navigator.getGamepads?.() ?? []).find(
+        (p) => p?.connected,
+      );
       if (pad) {
         const up = (pad.axes[1] ?? 0) < -0.6 || !!pad.buttons[12]?.pressed;
         const down = (pad.axes[1] ?? 0) > 0.6 || !!pad.buttons[13]?.pressed;
@@ -86,7 +106,8 @@ export function SideMenu({
 
         if (up && !prevUp) setFocused((f) => (f - 1 + count) % count);
         if (down && !prevDown) setFocused((f) => (f + 1) % count);
-        if (cross && !prevCross) choose((powerRef.current ? POWER : ITEMS)[focusedRef.current]);
+        if (cross && !prevCross)
+          choose((powerRef.current ? POWER : ITEMS)[focusedRef.current]);
 
         if (!circle && !ps && !start) armed = true;
         if (armed && (circle || ps || start) && !prevClose) {
@@ -119,7 +140,10 @@ export function SideMenu({
   return (
     <div className="menu-backdrop" onClick={onClose}>
       <aside className="side-menu" onClick={(e) => e.stopPropagation()}>
-        <span className="menu-title">{powerOpen ? "Power" : "Menu"}</span>
+        <span className="menu-title">
+          {menuIcon && <span className="keycap">{menuIcon}</span>}
+          {powerOpen ? "Power" : "Menu"}
+        </span>
         {items.map((label, i) => (
           <button
             key={label}
