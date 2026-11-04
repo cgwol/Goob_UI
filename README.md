@@ -18,7 +18,7 @@ First launch may take a minute while Rust compiles. Subsequent starts are much f
 
 ## Project Plan
 
-### Phase 1 — Console Shell (current focus)
+### Phase 1 — Console Shell
 - Fullscreen / borderless window
 - Hide mouse cursor by default
 - Basic Gamepad API support (PS5 controller navigation)
@@ -35,7 +35,7 @@ First launch may take a minute while Rust compiles. Subsequent starts are much f
 - Scan local Steam library (or start with a curated list)
 - Display game art and names on tiles
 
-### Phase 4 — Polish & System Integration
+### Phase 4 — Polish & System Integration (Current Focus)
 - Auto-launch on boot (macOS login item / Windows startup)
 - Settings screen (controller sensitivity, theme, exit)
 - Sound effects and animations

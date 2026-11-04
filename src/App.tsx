@@ -3,7 +3,9 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { Page } from "./pages/Page";
 import { SideMenu } from "./components/SideMenu";
-import { setInputMode, useInputMode } from "./input-mode";
+import { setInputMode, useInputMode, getPad } from "./input-mode";
+import { Games } from "./pages/Games";
+import { Apps } from "./pages/Apps";
 
 const TILES = ["Games", "Apps", "Settings"];
 
@@ -42,9 +44,7 @@ function useCursorMode() {
 
     const tick = () => {
       if (!alive) return;
-      const pad = Array.from(navigator.getGamepads?.() ?? []).find(
-        (p) => p?.connected,
-      );
+      const pad = getPad();
       if (pad) {
         const x = pad.axes[0] ?? 0;
         const y = pad.axes[1] ?? 0;
@@ -134,9 +134,7 @@ function Home() {
 
     const tick = () => {
       if (!alive) return;
-      const pad =
-        Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected) ??
-        null;
+      const pad = getPad();
 
       if (pad) {
         const x = pad.axes[0] ?? 0;
@@ -233,8 +231,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/games" element={<Page title="Games" />} />
-      <Route path="/apps" element={<Page title="Apps" />} />
+      <Route path="/games" element={<Games />} />
+      <Route path="/apps" element={<Apps />} />
       <Route path="/settings" element={<Page title="Settings" />} />
     </Routes>
   );

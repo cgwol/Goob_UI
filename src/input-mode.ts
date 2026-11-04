@@ -39,3 +39,12 @@ export function useInputMode() {
   }, []);
   return { mode, padKind };
 }
+
+export function getPad(): Gamepad | null {
+  if (!document.hasFocus()) return null;
+  const pads = Array.from(navigator.getGamepads?.() ?? []).filter(
+    (p): p is Gamepad => !!p?.connected,
+  );
+  const real = pads.find((p) => !/steam|virtual|valve/i.test(p.id));
+  return real ?? pads[0] ?? null;
+}

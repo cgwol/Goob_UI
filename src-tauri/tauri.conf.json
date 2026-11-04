@@ -18,11 +18,17 @@
         "fullscreen": false,
         "decorations": true,
         "alwaysOnTop": false,
-        "resizable": false
+        "resizable": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**"
+        ]
+      }
     }
   },
   "bundle": {

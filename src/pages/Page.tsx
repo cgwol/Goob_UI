@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "../components/SideMenu";
-import { useInputMode } from "../input-mode";
+import { useInputMode, getPad } from "../input-mode";
 
 export function Page({ title }: { title: string }) {
   const navigate = useNavigate();
@@ -45,9 +45,7 @@ export function Page({ title }: { title: string }) {
 
     const tick = () => {
       if (!alive) return;
-      const pad = Array.from(navigator.getGamepads?.() ?? []).find(
-        (p) => p?.connected,
-      );
+      const pad = getPad();
       if (pad) {
         const circle = !!pad.buttons[1]?.pressed;
         const ps = !!pad.buttons[16]?.pressed;
@@ -92,7 +90,6 @@ export function Page({ title }: { title: string }) {
         {backIcon && <span className="keycap">{backIcon}</span>}
         Back
       </button>
-      {/* CHANGE: stable callback so the menu loop does not restart */}
       <SideMenu open={menuOpen} onClose={closeMenu} />
     </div>
   );
