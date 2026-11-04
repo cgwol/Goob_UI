@@ -6,17 +6,45 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn system_action(action: String) -> Result<(), String> {
-    let script = match action.as_str() {
-        "sleep" => "tell application \"System Events\" to sleep",
-        "shutdown" => "tell application \"System Events\" to shut down",
-        _ => return Err("unknown action".into()),
-    };
-    std::process::Command::new("osascript")
-        .arg("-e")
-        .arg(script)
-        .spawn()
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    #[cfg(target_os = "windows")]
+    {
+        let mut cmd = match action.as_str() {
+            "sleep" => {
+                let mut c = std::process::Command::new("rundll32.exe");
+                c.args(["powrprof.dll,SetSuspendState", "0,1,0"]);
+                c
+            }
+            "shutdown" => {
+                let mut c = std::process::Command::new("shutdown");
+                c.args(["/s", "/t", "0"]);
+                c
+            }
+            _ => return Err("unknown action".into()),
+        };
+        cmd.spawn().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let script = match action.as_str() {
+            "sleep" => "tell application \"System Events\" to sleep",
+            "shutdown" => "tell application \"System Events\" to shut down",
+            _ => return Err("unknown action".into()),
+        };
+        std::process::Command::new("osascript")
+            .arg("-e")
+            .arg(script)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = action;
+        Err("unsupported platform".into())
+    }
 }
 
 #[tauri::command]
@@ -41,14 +69,12 @@ fn launch_path(path: String) -> Result<(), String> {
     Ok(())
 }
 
-// CHANGE
 #[derive(serde::Serialize)]
 struct SteamGame {
     app_id: String,
     name: String,
 }
 
-// CHANGE: Steam install path from the registry, not Program Files
 fn steam_root() -> Option<std::path::PathBuf> {
     let output = std::process::Command::new("reg")
         .args(["query", r"HKCU\Software\Valve\Steam", "/v", "SteamPath"])
@@ -79,7 +105,6 @@ fn field(body: &str, key: &str) -> String {
     String::new()
 }
 
-// CHANGE
 #[tauri::command]
 fn list_steam_games() -> Result<Vec<SteamGame>, String> {
     let steam = steam_root().ok_or("Steam install not found")?;
@@ -161,20 +186,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        // CHANGE: one handler, with the new command
-        .invoke_handler(tauri::generate_handler![
-            greet,
-            system_action,
-            launch_path,
-            list_steam_games
-        ])
-        .invoke_handler(tauri::generate_handler![
-            greet,
-            system_action,
-            launch_path,
-            list_steam_games,
-            launch_steam
-        ])
         .invoke_handler(tauri::generate_handler![
             greet,
             system_action,
