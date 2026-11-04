@@ -125,6 +125,26 @@ fn launch_steam(app_id: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn read_image(path: String) -> Result<String, String> {
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    let ext = std::path::Path::new(&path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("png")
+        .to_lowercase();
+    let mime = match ext.as_str() {
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        _ => "image/png",
+    };
+    Ok(format!(
+        "data:{mime};base64,{}",
+        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes)
+    ))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -143,6 +163,14 @@ pub fn run() {
             launch_path,
             list_steam_games,
             launch_steam
+        ])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            system_action,
+            launch_path,
+            list_steam_games,
+            launch_steam,
+            read_image
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
