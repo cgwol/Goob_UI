@@ -1,129 +1,143 @@
-html, body {
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-  height: 100vh;
-  background: #111;
-}
 
 body.cursor-hidden,
 body.cursor-hidden * {
   cursor: none !important;
 }
 
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafb);
-}
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-.container {
+html, body, #root {
   margin: 0;
-  padding-top: 10vh;
+  height: 100%;
+  background: #0e1014;
+  color: #f3efe6;
+  font-family: system-ui, sans-serif;
+}
+
+.shell {
+  height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  text-align: center;
+  align-items: center;
+  gap: 3rem;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 1.5rem 2.5rem;
+  font-size: 1.1rem;
+  color: #9a9388;
 }
 
 .row {
   display: flex;
+  gap: 1.5rem;
+  align-items: center;
   justify-content: center;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+.tile {
+  width: 200px;
+  height: 260px;
+  border: none;
+  border-radius: 18px;
+  background: #1c2129;
+  color: #f3efe6;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
-a:hover {
-  color: #535bf2;
+.tile.focused {
+  transform: scale(1.12);
+  background: #243041;
+  box-shadow: 0 0 0 3px #e2a15a, 0 18px 40px rgba(0, 0, 0, 0.45);
 }
 
-h1 {
-  text-align: center;
+.tile-label {
+  display: block;
 }
 
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
 }
 
-button {
+.side-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 280px;
+  background: #171b22;
+  display: flex;
+  flex-direction: column;
+  padding: 5rem 1.25rem 2rem;
+  gap: 0.5rem;
+}
+
+.menu-item {
+  border: none;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  font-size: 1.1rem;
+  background: transparent;
+  color: #f3efe6;
+}
+
+.menu-item.focused {
+  background: #243041;
+  box-shadow: inset 0 0 0 2px #e2a15a;
+}
+
+.brand {
   cursor: pointer;
 }
 
-button:hover {
-  border-color: #396cd8;
+.brand,
+.back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  height: 52px;
+  padding: 0 1.25rem;
+  border: none;
+  border-radius: 14px;
+  background: #1c2129;
+  color: #f3efe6;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
+
+.brand:hover,
+.back:hover,
+.brand:focus-visible,
+.back:focus-visible {
+  transform: scale(1.06);
+  background: #243041;
+  box-shadow: 0 0 0 3px #e2a15a, 0 12px 24px rgba(0, 0, 0, 0.35);
 }
 
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
+.keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4em;
+  height: 1.4em;
+  margin-right: 0.5rem;
+  padding: 0 0.35rem;
+  border-radius: 6px;
+  background: #0e1014;
+  box-shadow: inset 0 0 0 1px #e2a15a;
+  font-size: 0.85em;
 }

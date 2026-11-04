@@ -1,38 +1,123 @@
 import "./App.css";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
+import { Page } from "./pages/Page";
+import { SideMenu } from "./components/SideMenu";
+import { setInputMode, useInputMode } from "./input-mode";
 
-const TILES = ["Games", "Apps", "Settings", "Library"];
+const TILES = ["Games", "Apps", "Settings"];
 
-function App() {
+function useCursorMode() {
+  useEffect(() => {
+    const hide = () => document.body.classList.add("cursor-hidden");
+    const show = () => document.body.classList.remove("cursor-hidden");
+
+    const onKey = () => {
+      setInputMode("keyboard"); 
+      hide();
+    };
+    const onMouse = (e: MouseEvent) => {
+      if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) {
+        setInputMode("mouse"); 
+        show();
+      }
+    };
+    const onMouseDown = () => {
+      setInputMode("mouse"); 
+      show();
+    };
+    const onWheel = () => {
+      setInputMode("mouse"); 
+      show();
+    };
+
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousemove", onMouse);
+    window.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("wheel", onWheel);
+
+    let alive = true;
+    let raf = 0;
+    let prev = "";
+
+    const tick = () => {
+      if (!alive) return;
+      const pad = Array.from(navigator.getGamepads?.() ?? []).find(
+        (p) => p?.connected,
+      );
+      if (pad) {
+        const x = pad.axes[0] ?? 0;
+        const y = pad.axes[1] ?? 0;
+        const stick = Math.abs(x) > 0.6 || Math.abs(y) > 0.6;
+        const pressed = pad.buttons.some((b) => b.pressed);
+        const now = `${stick}:${pressed}`;
+        if (now !== prev && (stick || pressed)) {
+          setInputMode("gamepad", pad.id); // CHANGE
+          hide();
+        }
+        prev = now;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousemove", onMouse);
+      window.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("wheel", onWheel);
+    };
+  }, []);
+}
+
+function Home() {
   const [focused, setFocused] = useState(0);
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuOpenRef = useRef(menuOpen);
+  menuOpenRef.current = menuOpen;
+  const { mode, padKind } = useInputMode();
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const menuIcon =
+    mode === "keyboard"
+      ? "Esc"
+      : mode === "gamepad" && padKind === "playstation"
+        ? "OPTIONS"
+        : mode === "gamepad"
+          ? "☰"
+          : "";
 
-  // Keyboard Support
+  const open = () => navigate("/" + TILES[focusedRef.current].toLowerCase());
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (!menuOpenRef.current) setMenuOpen(true);
+        return;
+      }
+      if (menuOpenRef.current) return;
       if (e.key === "ArrowLeft") {
         setFocused((f) => (f - 1 + TILES.length) % TILES.length);
       }
       if (e.key === "ArrowRight") {
         setFocused((f) => (f + 1) % TILES.length);
       }
-      if (e.key === "Enter" || e.key === " ") {
-        console.log("Selected:", TILES[focused]);
-      }
+      if (e.key === "Enter" || e.key === " ") open();
     };
-
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focused]);
+  }, []);
 
-  // Gamepad support
   useEffect(() => {
     let alive = true;
     let raf = 0;
-    let prevLeft = false;
-    let prevRight = false;
     let prevCross = false;
+    let prevMenu = false;
+    let armed = false;
     let holdDir: "left" | "right" | null = null;
     let holdSince = 0;
     let lastFire = 0;
@@ -49,42 +134,55 @@ function App() {
 
     const tick = () => {
       if (!alive) return;
-      const pads = navigator.getGamepads?.() ?? [];
-      const pad = Array.from(pads).find((p) => p?.connected) ?? null;
+      const pad =
+        Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected) ??
+        null;
 
       if (pad) {
         const x = pad.axes[0] ?? 0;
         const left = x < -0.6 || !!pad.buttons[14]?.pressed;
         const right = x > 0.6 || !!pad.buttons[15]?.pressed;
         const cross = !!pad.buttons[0]?.pressed;
+        const circle = !!pad.buttons[1]?.pressed;
+        const ps = !!pad.buttons[16]?.pressed;
+        const start = !!pad.buttons[9]?.pressed;
         const now = performance.now();
 
-        const active =
-          left && !right ? "left" : right && !left ? "right" : null;
+        if (!menuOpenRef.current) {
+          const active =
+            left && !right ? "left" : right && !left ? "right" : null;
 
-        if (active !== holdDir) {
-          holdDir = active;
-          holdSince = now;
-          lastFire = now;
-          if (active) move(active);
-        } else if (
-          active &&
-          now - holdSince >= HOLD_DELAY &&
-          now - lastFire >= REPEAT
+          if (active !== holdDir) {
+            holdDir = active;
+            holdSince = now;
+            lastFire = now;
+            if (active) move(active);
+          } else if (
+            active &&
+            now - holdSince >= HOLD_DELAY &&
+            now - lastFire >= REPEAT
+          ) {
+            lastFire = now;
+            move(active);
+          }
+
+          if (cross && !prevCross) open();
+        }
+
+        if (!circle && !ps && !start) armed = true;
+        if (
+          armed &&
+          !menuOpenRef.current &&
+          (circle || ps || start) &&
+          !prevMenu
         ) {
-          lastFire = now;
-          move(active);
+          setMenuOpen(true);
         }
-
-        if (cross && !prevCross) {
-          console.log("Selected:", TILES[focusedRef.current]);
-        }
-
-        prevLeft = left;
-        prevRight = right;
         prevCross = cross;
+        prevMenu = circle || ps || start;
       } else {
-        prevLeft = prevRight = prevCross = false;
+        prevCross = false;
+        prevMenu = false;
         holdDir = null;
       }
 
@@ -98,83 +196,46 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const hide = () => document.body.classList.add("cursor-hidden");
-    const show = () => document.body.classList.remove("cursor-hidden");
-
-    // Hide when using keyboard or gamepad
-    const onKey = () => hide();
-    window.addEventListener("keydown", onKey);
-
-    let raf = 0;
-    const poll = () => {
-      const pads = navigator.getGamepads?.() ?? [];
-      const pad = Array.from(pads).find((p) => p?.connected);
-      if (pad) {
-        const moved =
-          Math.abs(pad.axes[0] ?? 0) > 0.4 ||
-          Math.abs(pad.axes[1] ?? 0) > 0.4 ||
-          pad.buttons.some((b) => b.pressed);
-        if (moved) hide();
-      }
-      raf = requestAnimationFrame(poll);
-    };
-    raf = requestAnimationFrame(poll);
-
-    // Show again on any mouse activity
-    window.addEventListener("mousemove", show);
-    window.addEventListener("mousedown", show);
-    window.addEventListener("wheel", show);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousemove", show);
-      window.removeEventListener("mousedown", show);
-      window.removeEventListener("wheel", show);
-    };
-  }, []);
-
   return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "2rem",
-        background: "#111",
-        color: "white",
-        fontFamily: "system-ui",
-      }}
-    >
-      {TILES.map((label, i) => (
-        <div
-          key={label}
-          onMouseEnter={() => setFocused(i)}
-          onClick={() => console.log("Selected:", label)}
-          style={{
-            width: 180,
-            height: 180,
-            borderRadius: 16,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "1.4rem",
-            fontWeight: 600,
-            background: i === focused ? "#1e90ff" : "#2a2a2a",
-            transform: i === focused ? "scale(1.15)" : "scale(1)",
-            boxShadow: i === focused ? "0 0 30px #1e90ff88" : "none",
-            transition: "all 0.15s ease",
-            cursor: "pointer",
-          }}
-        >
-          {label}
-        </div>
-      ))}
+    <div className="shell">
+      <header className="topbar">
+        <span className="brand" onClick={() => setMenuOpen(true)}>
+          {menuIcon && <span className="keycap">{menuIcon}</span>}
+          Home
+        </span>
+        <span className="clock">
+          {new Date().toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </span>
+      </header>
+      <div className="row">
+        {TILES.map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            className={i === focused ? "tile focused" : "tile"}
+            onMouseEnter={() => setFocused(i)}
+            onClick={() => navigate("/" + label.toLowerCase())}
+          >
+            <span className="tile-label">{label}</span>
+          </button>
+        ))}
+      </div>
+      <SideMenu open={menuOpen} onClose={closeMenu} />
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  useCursorMode();
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/games" element={<Page title="Games" />} />
+      <Route path="/apps" element={<Page title="Apps" />} />
+      <Route path="/settings" element={<Page title="Settings" />} />
+    </Routes>
+  );
+}
