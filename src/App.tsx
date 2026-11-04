@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { Page } from "./pages/Page";
 import { SideMenu } from "./components/SideMenu";
-import { setInputMode, useInputMode } from "./input-mode";
+import { setInputMode, useInputMode, getPad } from "./input-mode";
 import { Games } from "./pages/Games";
 
 const TILES = ["Games", "Apps", "Settings"];
@@ -43,9 +43,7 @@ function useCursorMode() {
 
     const tick = () => {
       if (!alive) return;
-      const pad = Array.from(navigator.getGamepads?.() ?? []).find(
-        (p) => p?.connected,
-      );
+      const pad = getPad();
       if (pad) {
         const x = pad.axes[0] ?? 0;
         const y = pad.axes[1] ?? 0;
@@ -135,9 +133,7 @@ function Home() {
 
     const tick = () => {
       if (!alive) return;
-      const pad =
-        Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected) ??
-        null;
+      const pad = getPad();
 
       if (pad) {
         const x = pad.axes[0] ?? 0;

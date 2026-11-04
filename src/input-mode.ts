@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 export type InputMode = "mouse" | "keyboard" | "gamepad";
 export type PadKind = "playstation" | "xbox" | "nintendo" | "generic";
 
+Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected)
+
 let mode: InputMode = "mouse";
 let padKind: PadKind = "generic";
 const listeners = new Set<() => void>();
@@ -38,4 +40,13 @@ export function useInputMode() {
     };
   }, []);
   return { mode, padKind };
+}
+
+// Disables steam virtual gamepad in favor of the actual controller connected
+export function getPad(): Gamepad | null {
+  const pads = Array.from(navigator.getGamepads?.() ?? []).filter(
+    (p): p is Gamepad => !!p?.connected,
+  );
+  const real = pads.find((p) => !/steam|virtual|valve/i.test(p.id));
+  return real ?? pads[0] ?? null;
 }

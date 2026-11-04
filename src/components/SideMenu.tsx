@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
-import { useInputMode } from "../input-mode";
+import { useInputMode, getPad } from "../input-mode";
 
 const ITEMS = ["Home", "Settings", "Close"] as const;
 const POWER = ["Minimize", "Close app", "Sleep", "Power off"] as const;
@@ -92,9 +92,7 @@ export function SideMenu({
 
     const tick = () => {
       if (!alive) return;
-      const pad = Array.from(navigator.getGamepads?.() ?? []).find(
-        (p) => p?.connected,
-      );
+      const pad = getPad();
       if (pad) {
         const up = (pad.axes[1] ?? 0) < -0.6 || !!pad.buttons[12]?.pressed;
         const down = (pad.axes[1] ?? 0) > 0.6 || !!pad.buttons[13]?.pressed;

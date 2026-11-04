@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { getPad } from "../input-mode";
 
 export type PopupAction = {
   label: string;
@@ -50,7 +51,7 @@ export function Popup({
 
     const tick = () => {
       if (!alive) return;
-      const pad = Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected);
+      const pad = getPad();
       const list = actionsRef.current;
       if (pad) {
         const up = (pad.axes[1] ?? 0) < -0.6 || !!pad.buttons[12]?.pressed;
