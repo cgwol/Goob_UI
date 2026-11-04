@@ -20,14 +20,17 @@ export function Popup({
   const [focused, setFocused] = useState(0);
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
-  const actionsRef = useRef(actions); // CHANGE
-  const onCloseRef = useRef(onClose); // CHANGE
+  const actionsRef = useRef(actions);
+  const onCloseRef = useRef(onClose);
   actionsRef.current = actions;
   onCloseRef.current = onClose;
+  const ignore = useRef(true); // CHANGE
 
   useEffect(() => {
-    // CHANGE: blur once on open, not on every re-render
     (document.activeElement as HTMLElement | null)?.blur?.();
+    const arm = setTimeout(() => {
+      ignore.current = false;
+    }, 400); // CHANGE
 
     const onKey = (e: KeyboardEvent) => {
       const inField = (e.target as HTMLElement).tagName === "INPUT";
@@ -64,7 +67,7 @@ export function Popup({
 
         if (!cross && !circle && !triangle && !up && !down) armed = true;
 
-        if (armed && !inField) {
+        if (armed && !inField && !ignore.current) {
           const active = up && !down ? "up" : down && !up ? "down" : null;
           if (active !== holdDir) {
             holdDir = active;
@@ -91,14 +94,19 @@ export function Popup({
 
     return () => {
       alive = false;
+      clearTimeout(arm);
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKey);
     };
-    // CHANGE: run once, so typing does not restart this and blur the field
   }, []);
 
   return (
-    <div className="popup-backdrop" onClick={onClose}>
+    <div
+      className="popup-backdrop"
+      onClick={() => {
+        if (!ignore.current) onCloseRef.current(); // CHANGE
+      }}
+    >
       <section className="popup" onClick={(e) => e.stopPropagation()} role="dialog">
         <header className="popup-title">{title}</header>
         {children && <div className="popup-body">{children}</div>}
@@ -109,7 +117,11 @@ export function Popup({
               type="button"
               className={i === focused ? "menu-item focused" : "menu-item"}
               onMouseEnter={() => setFocused(i)}
-              onClick={action.onSelect}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (ignore.current) return; // CHANGE
+                action.onSelect();
+              }}
             >
               {action.label}
             </button>

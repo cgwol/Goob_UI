@@ -22,7 +22,18 @@ fn system_action(action: String) -> Result<(), String> {
 #[tauri::command]
 fn launch_path(path: String) -> Result<(), String> {
     let file = std::path::Path::new(&path);
-    let mut cmd = std::process::Command::new(file);
+    let is_bat = file
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("bat"))
+        .unwrap_or(false);
+    let mut cmd = if is_bat {
+        let mut c = std::process::Command::new("cmd");
+        c.args(["/C", &path]);
+        c
+    } else {
+        std::process::Command::new(file)
+    };
     if let Some(dir) = file.parent() {
         cmd.current_dir(dir);
     }

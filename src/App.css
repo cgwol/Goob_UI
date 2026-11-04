@@ -306,3 +306,12 @@ body,
 .tile-more {
   z-index: 1;
 }
+
+.popup-backdrop {
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.row.is-blocked {
+  pointer-events: none;
+}

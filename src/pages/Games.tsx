@@ -6,7 +6,6 @@ import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
 
-// CHANGE
 type Game = { id: string; name: string; path: string; steamId?: string; image?: string; lastPlayed?: number };
 type SteamGame = { app_id: string; name: string };
 
@@ -15,7 +14,7 @@ const KEY = "games";
 function loadGames(): Game[] {
   try {
     const list: Game[] = JSON.parse(localStorage.getItem(KEY) ?? "[]");
-    return list.sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0)); // CHANGE
+    return list.sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0));
   } catch {
     return [];
   }
@@ -75,7 +74,6 @@ export function Games() {
     el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [focused]);
 
-  // CHANGE: stamp the game and move it to the front
   const launch = (game: Game) => {
     const now = Date.now();
     setGames((list) => {
@@ -193,6 +191,29 @@ export function Games() {
   const setTileImage = () => {
     const id = menuFor;
     setMenuFor(null);
+    setTimeout(() => {
+      void (async () => {
+        if (picking.current || !id) return;
+        picking.current = true;
+        try {
+          const image = await pickImage();
+          if (!image) return;
+          setGames((list) => list.map((g) => (g.id === id ? { ...g, image } : g)));
+        } finally {
+          picking.current = false;
+        }
+      })();
+    }, 50);
+  };
+
+  // CHANGE: pick the image, do not reopen the tile menu
+  const setAddedImage = () => {
+    const id = addedId;
+    const name = draft.trim();
+    if (id && name) {
+      setGames((list) => list.map((g) => (g.id === id ? { ...g, name } : g)));
+    }
+    closeAdded();
     setTimeout(() => {
       void (async () => {
         if (picking.current || !id) return;
@@ -352,7 +373,7 @@ export function Games() {
       </header>
 
       <div
-        className="row"
+        className={addedId || menuFor || addOpen || steamGames ? "row is-blocked" : "row"}
         ref={rowRef}
         onWheel={(e) => {
           if (!rowRef.current) return;
@@ -459,7 +480,7 @@ export function Games() {
           onClose={closeAdded}
           actions={[
             { label: "Save name", onSelect: saveName },
-            { label: "Set image", onSelect: () => { setMenuFor(addedId); closeAdded(); } },
+            { label: "Set image", onSelect: setAddedImage },
             { label: "Cancel add", onSelect: cancelAdd },
           ]}
         >
