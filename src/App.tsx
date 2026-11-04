@@ -4,6 +4,7 @@ import { Routes, Route, useNavigate } from "react-router-dom";
 import { Page } from "./pages/Page";
 import { SideMenu } from "./components/SideMenu";
 import { setInputMode, useInputMode } from "./input-mode";
+import { Games } from "./pages/Games";
 
 const TILES = ["Games", "Apps", "Settings"];
 
@@ -233,7 +234,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/games" element={<Page title="Games" />} />
+      <Route path="/games" element={<Games />} />
       <Route path="/apps" element={<Page title="Apps" />} />
       <Route path="/settings" element={<Page title="Settings" />} />
     </Routes>
