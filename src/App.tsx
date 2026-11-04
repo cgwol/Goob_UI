@@ -6,6 +6,7 @@ import { SideMenu } from "./components/SideMenu";
 import { setInputMode, useInputMode, getPad } from "./input-mode";
 import { Games } from "./pages/Games";
 import { Apps } from "./pages/Apps";
+import { Settings } from "./pages/Settings";
 
 const TILES = ["Games", "Apps", "Settings"];
 
@@ -233,7 +234,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/games" element={<Games />} />
       <Route path="/apps" element={<Apps />} />
-      <Route path="/settings" element={<Page title="Settings" />} />
+      <Route path="/settings" element={<Settings />} />
     </Routes>
   );
 }

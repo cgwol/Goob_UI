@@ -315,3 +315,34 @@ body,
 .row.is-blocked {
   pointer-events: none;
 }
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(520px, 80vw);
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  text-align: left;
+  font-size: 1.1rem;
+  background: #1c2129;
+  color: #f3efe6;
+  cursor: pointer;
+}
+
+.setting.focused {
+  background: #243041;
+  box-shadow: inset 0 0 0 2px #e2a15a;
+}
+
+.setting-value {
+  color: #e2a15a;
+  font-weight: 650;
+}
