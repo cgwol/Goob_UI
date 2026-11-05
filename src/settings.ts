@@ -2,15 +2,19 @@ import { useEffect, useState } from "react";
 
 export type Sensitivity = "Low" | "Medium" | "High";
 export type Theme = "Dark" | "Light" | "Forest" | "Ocean" | "Black";
+export type Volume = "Off" | "Low" | "Medium" | "High";
 
 const KEY = "sensitivity";
 const THEME_KEY = "theme";
 const ORDER: Sensitivity[] = ["Low", "Medium", "High"];
 const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Black"];
+const VOLUME_KEY = "volume";
+const VOLUMES: Volume[] = ["Off", "Low", "Medium", "High"];
 
 let sensitivity: Sensitivity = load();
 let theme: Theme = loadTheme();
 const listeners = new Set<() => void>();
+let volume: Volume = loadVolume();
 
 function load(): Sensitivity {
   const saved = localStorage.getItem(KEY);
@@ -94,6 +98,41 @@ export function setTheme(next: Theme) {
   localStorage.setItem(THEME_KEY, theme);
   applyTheme();
   emit();
+}
+
+function loadVolume(): Volume {
+  const saved = localStorage.getItem(VOLUME_KEY);
+  return VOLUMES.includes(saved as Volume) ? (saved as Volume) : "Medium";
+}
+
+export function getVolume() {
+  return volume;
+}
+
+export function setVolume(next: Volume) {
+  volume = next;
+  localStorage.setItem(VOLUME_KEY, volume);
+  emit();
+}
+
+export function useVolume() {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const update = () => setTick((n) => n + 1);
+    listeners.add(update);
+    return () => {
+      listeners.delete(update)
+    }
+  }, []);
+  return volume;
+}
+
+
+export function volumeLevel() {
+  if (volume === "Off") return 0;
+  if (volume === "Low") return 0.25;
+  if (volume === "High") return 1;
+  return 0.55;
 }
 
 applyTheme();

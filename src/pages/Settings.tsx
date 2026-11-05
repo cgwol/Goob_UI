@@ -3,22 +3,27 @@ import { useNavigate } from "react-router-dom";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { SideMenu } from "../components/SideMenu";
 import { useInputMode, getPad, setPadChoice, type PadChoice } from "../input-mode";
+import { play } from "../sound";
 import {
   getDeadzone,
   useSensitivity,
   useTheme,
+  useVolume,
   setSensitivity,
   setTheme,
+  setVolume,
   type Sensitivity,
   type Theme,
+  type Volume,
 } from "../settings";
 
-const ITEMS = ["Start with Windows", "Controller Stick Sensitivity", "Controller Legend", "Theme"] as const;
+const ITEMS = ["Start with Windows", "Controller Stick Sensitivity", "Controller Legend", "Theme", "System volume"] as const;
 const SENS: Sensitivity[] = ["Low", "Medium", "High"];
 const LEGENDS: PadChoice[] = ["auto detection", "playstation", "xbox", "nintendo", "generic"];
 const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Black"];
+const VOLUMES: Volume[] = ["Off", "Low", "Medium", "High"];
 
-type Drop = "sens" | "legend" | "theme" | null;
+type Drop = "sens" | "legend" | "theme" | "volume" | null;
 
 function legendLabel(value: PadChoice) {
   return value === "auto detection" ? "Auto" : value[0].toUpperCase() + value.slice(1);
@@ -33,6 +38,7 @@ export function Settings() {
   const { mode, padKind, padChoice } = useInputMode();
   const sensitivity = useSensitivity();
   const theme = useTheme();
+  const volume = useVolume();
 
   const [focused, setFocused] = useState(0);
   const focusedRef = useRef(focused);
@@ -67,12 +73,15 @@ export function Settings() {
     if (dropRef.current === "sens") return SENS;
     if (dropRef.current === "legend") return LEGENDS;
     if (dropRef.current === "theme") return THEMES;
+    if (dropRef.current === "volume") return VOLUMES;
     return [];
   };
 
   const openDrop = (kind: Drop) => {
-    const list = kind === "sens" ? SENS : kind === "legend" ? LEGENDS : THEMES;
-    const current = kind === "sens" ? sensitivity : kind === "legend" ? padChoice : theme;
+    const list =
+      kind === "sens" ? SENS : kind === "legend" ? LEGENDS : kind === "theme" ? THEMES : VOLUMES;
+    const current =
+      kind === "sens" ? sensitivity : kind === "legend" ? padChoice : kind === "theme" ? theme : volume;
     setDropFocus(Math.max(0, list.indexOf(current as never)));
     setDrop(kind);
   };
@@ -83,6 +92,10 @@ export function Settings() {
     if (dropRef.current === "sens") setSensitivity(chosen as Sensitivity);
     if (dropRef.current === "legend") setPadChoice(chosen as PadChoice);
     if (dropRef.current === "theme") setTheme(chosen as Theme);
+    if (dropRef.current === "volume") {
+      setVolume(chosen as Volume);
+      play("select");
+    }
     setDrop(null);
   };
 
@@ -92,12 +105,14 @@ export function Settings() {
     if (item === "Controller Stick Sensitivity") openDrop("sens");
     if (item === "Controller Legend") openDrop("legend");
     if (item === "Theme") openDrop("theme");
+    if (item === "System volume") openDrop("volume");
   };
 
   const value = (label: (typeof ITEMS)[number]) => {
     if (label === "Start with Windows") return startup ? "On" : "Off";
     if (label === "Controller Stick Sensitivity") return sensitivity;
     if (label === "Theme") return theme;
+    if (label === "System volume") return volume;
     return legendLabel(padChoice);
   };
 
@@ -212,7 +227,7 @@ export function Settings() {
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKey);
     };
-  }, [navigate, startup, sensitivity, theme, padChoice]);
+  }, [navigate, startup, sensitivity, theme, padChoice, volume]);
 
   const backIcon =
     mode === "keyboard" ? "⌫" : mode === "gamepad" && padKind === "playstation" ? "○" : mode === "gamepad" ? "B" : "";
@@ -220,7 +235,7 @@ export function Settings() {
     mode === "keyboard" ? "Esc" : mode === "gamepad" && padKind === "playstation" ? "OPTIONS" : mode === "gamepad" ? "☰" : "";
 
   const dropList =
-    drop === "sens" ? SENS : drop === "legend" ? LEGENDS : drop === "theme" ? THEMES : [];
+    drop === "sens" ? SENS : drop === "legend" ? LEGENDS : drop === "theme" ? THEMES : drop === "volume" ? VOLUMES : [];
 
   return (
     <div className="shell">
@@ -247,6 +262,7 @@ export function Settings() {
                 if (label === "Controller Stick Sensitivity") openDrop("sens");
                 if (label === "Controller Legend") openDrop("legend");
                 if (label === "Theme") openDrop("theme");
+                if (label === "System volume") openDrop("volume");
               }}
             >
               <span>{label}</span>
@@ -254,7 +270,8 @@ export function Settings() {
             </button>
             {((label === "Controller Stick Sensitivity" && drop === "sens") ||
               (label === "Controller Legend" && drop === "legend") ||
-              (label === "Theme" && drop === "theme")) && (
+              (label === "Theme" && drop === "theme") ||
+              (label === "System volume" && drop === "volume")) && (
               <div className="dropdown">
                 {dropList.map((option, n) => (
                   <button
@@ -267,6 +284,10 @@ export function Settings() {
                       if (drop === "sens") setSensitivity(option as Sensitivity);
                       if (drop === "legend") setPadChoice(option as PadChoice);
                       if (drop === "theme") setTheme(option as Theme);
+                      if (drop === "volume") {
+                        setVolume(option as Volume);
+                        play("select");
+                      }
                       setDrop(null);
                     }}
                   >
