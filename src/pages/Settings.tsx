@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { SideMenu } from "../components/SideMenu";
-import { cycleSensitivity, getDeadzone, useSensitivity } from "../settings";
 import { useInputMode, getPad, cyclePadChoice } from "../input-mode";
+import { cycleSensitivity, getDeadzone, useSensitivity, cycleTheme, useTheme } from "../settings";
 
-const ITEMS = ["Start with Windows", "Controller Stick Sensitivity", "Controller Legend"] as const;
+const ITEMS = ["Start with Windows", "Controller Stick Sensitivity", "Controller Legend", "Theme"] as const;
 
 export function Settings() {
   const navigate = useNavigate();
@@ -15,6 +15,7 @@ export function Settings() {
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const { mode, padKind, padChoice } = useInputMode();
   const sensitivity = useSensitivity();
+  const theme = useTheme();
 
   const [focused, setFocused] = useState(0);
   const focusedRef = useRef(focused);
@@ -44,13 +45,17 @@ export function Settings() {
     if (item === "Start with Windows") void toggleStartup();
     if (item === "Controller Stick Sensitivity") cycleSensitivity();
     if (item === "Controller Legend") cyclePadChoice();
+    if (item === "Theme") cycleTheme();
   };
 
   const value = (label: (typeof ITEMS)[number]) => {
     if (label === "Start with Windows") return startup ? "On" : "Off";
     if (label === "Controller Stick Sensitivity") return sensitivity;
+    if (label === "Theme") return theme;
     return padChoice === "auto detection" ? "Auto" : padChoice[0].toUpperCase() + padChoice.slice(1);
   };
+
+  
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
