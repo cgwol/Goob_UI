@@ -20,6 +20,8 @@
     "core:window:allow-set-always-on-top",
     "core:window:allow-current-monitor",
     "core:window:allow-set-position",
+    "core:window:allow-set-shadow",
+    "core:window:allow-outer-size",
     "dialog:default",
     "autostart:allow-enable",
     "autostart:allow-disable",

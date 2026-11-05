@@ -17,7 +17,7 @@
         "height": 720,
         "fullscreen": false,
         "decorations": false,
-        "maximized": true,
+        "maximized": false,
         "alwaysOnTop": false,
         "resizable": true
       }

@@ -39,6 +39,10 @@ function applyTheme() {
   document.documentElement.className = `theme-${theme.toLowerCase()}`;
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function getSensitivity() {
   return sensitivity;
 }
@@ -133,42 +137,66 @@ export function getWindowMode() {
   return windowMode;
 }
 
+async function coverMonitor() {
+  const win = getCurrentWindow();
+  const monitor = await currentMonitor();
+  if (!monitor) return;
+
+  // Windows draws an invisible border inside a borderless window. Shift past it.
+  const pad = Math.round(8 * monitor.scaleFactor);
+  await win.setDecorations(false);
+  await win.setShadow(false).catch(() => {});
+  await win.setResizable(false);
+  await win.unmaximize();
+  await wait(80);
+
+  const pos = new PhysicalPosition(monitor.position.x - pad, monitor.position.y - pad);
+  const size = new PhysicalSize(monitor.size.width + pad * 2, monitor.size.height + pad * 2);
+
+  await win.setAlwaysOnTop(true);
+  await win.setPosition(pos);
+  await win.setSize(size);
+  await wait(50);
+  await win.setPosition(pos);
+  await win.setSize(size);
+}
+
 export async function applyWindowMode(mode: WindowMode) {
   const win = getCurrentWindow();
 
   if (mode === "Fullscreen") {
+    await win.setAlwaysOnTop(false);
     await win.setDecorations(false);
     await win.setFullscreen(true);
     return;
   }
 
   await win.setFullscreen(false);
+  await wait(80);
 
   if (mode === "Windowed fullscreen") {
-    const monitor = await currentMonitor();
-    await win.setDecorations(false);
-    await win.setResizable(false);
-    await win.unmaximize();
-    if (monitor) {
-      await win.setAlwaysOnTop(true);
-      await win.setPosition(new PhysicalPosition(monitor.position.x, monitor.position.y));
-      await win.setSize(new PhysicalSize(monitor.size.width, monitor.size.height));
-      await win.setAlwaysOnTop(false);
-    }
+    await coverMonitor();
     return;
   }
 
   await win.setAlwaysOnTop(false);
   await win.unmaximize();
   await win.setDecorations(true);
+  await win.setShadow(true).catch(() => {});
   await win.setResizable(true);
 
   const width = 1280;
   const height = 720;
   await win.setSize(new LogicalSize(width, height));
+  await wait(80);
 
   const monitor = await currentMonitor();
-  if (monitor) {
+  const outer = await win.outerSize().catch(() => null);
+  if (monitor && outer) {
+    const x = monitor.position.x + (monitor.size.width - outer.width) / 2;
+    const y = monitor.position.y + (monitor.size.height - outer.height) / 2;
+    await win.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
+  } else if (monitor) {
     const scale = monitor.scaleFactor;
     const x = monitor.position.x + (monitor.size.width - width * scale) / 2;
     const y = monitor.position.y + (monitor.size.height - height * scale) / 2;
@@ -198,3 +226,12 @@ export function useWindowMode() {
 }
 
 applyTheme();
+
+getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+  if (getWindowMode() !== "Windowed fullscreen") return;
+  if (focused) {
+    void coverMonitor();
+  } else {
+    void getCurrentWindow().setAlwaysOnTop(false);
+  }
+});
