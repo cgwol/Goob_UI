@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
-import { getDeadzone } from "../settings";
+import { getDeadzone, applyWindowMode, getWindowMode } from "../settings";
 import { play } from "../sound";
 
 type AppItem = { id: string; name: string; path: string; image?: string; lastPlayed?: number };

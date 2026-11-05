@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { LogicalSize } from "@tauri-apps/api/dpi";
+import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
+import { LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 
 export type Sensitivity = "Low" | "Medium" | "High";
 export type Theme = "Dark" | "Light" | "Forest" | "Ocean" | "Black";
@@ -9,7 +9,6 @@ export type WindowMode = "Windowed fullscreen" | "Fullscreen" | "Windowed";
 
 const KEY = "sensitivity";
 const THEME_KEY = "theme";
-const ORDER: Sensitivity[] = ["Low", "Medium", "High"];
 const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Black"];
 const VOLUME_KEY = "volume";
 const VOLUMES: Volume[] = ["Off", "Low", "Medium", "High"];
@@ -44,13 +43,6 @@ export function getSensitivity() {
   return sensitivity;
 }
 
-// export function cycleSensitivity() {
-//   sensitivity = ORDER[(ORDER.indexOf(sensitivity) + 1) % ORDER.length];
-//   localStorage.setItem(KEY, sensitivity);
-//   emit();
-//   return sensitivity;
-// }
-
 export function getDeadzone() {
   if (sensitivity === "High") return 0.35;
   if (sensitivity === "Low") return 0.75;
@@ -60,14 +52,6 @@ export function getDeadzone() {
 export function getTheme() {
   return theme;
 }
-
-// export function cycleTheme() {
-//   theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-//   localStorage.setItem(THEME_KEY, theme);
-//   applyTheme();
-//   emit();
-//   return theme;
-// }
 
 export function useSensitivity() {
   const [, setTick] = useState(0);
@@ -127,12 +111,11 @@ export function useVolume() {
     const update = () => setTick((n) => n + 1);
     listeners.add(update);
     return () => {
-      listeners.delete(update)
-    }
+      listeners.delete(update);
+    };
   }, []);
   return volume;
 }
-
 
 export function volumeLevel() {
   if (volume === "Off") return 0;
@@ -143,7 +126,7 @@ export function volumeLevel() {
 
 function loadWindow(): WindowMode {
   const saved = localStorage.getItem(WINDOW_KEY);
-  return WINDOW_MODES.includes(saved as WindowMode) ? (saved as WindowMode) : "Windowed";
+  return WINDOW_MODES.includes(saved as WindowMode) ? (saved as WindowMode) : "Windowed fullscreen";
 }
 
 export function getWindowMode() {
@@ -152,23 +135,47 @@ export function getWindowMode() {
 
 export async function applyWindowMode(mode: WindowMode) {
   const win = getCurrentWindow();
+
   if (mode === "Fullscreen") {
     await win.setDecorations(false);
     await win.setFullscreen(true);
     return;
   }
+
   await win.setFullscreen(false);
+
   if (mode === "Windowed fullscreen") {
+    const monitor = await currentMonitor();
     await win.setDecorations(false);
-    await win.setResizable(true);
-    await win.maximize();
+    await win.setResizable(false);
+    await win.unmaximize();
+    if (monitor) {
+      await win.setAlwaysOnTop(true);
+      await win.setPosition(new PhysicalPosition(monitor.position.x, monitor.position.y));
+      await win.setSize(new PhysicalSize(monitor.size.width, monitor.size.height));
+      await win.setAlwaysOnTop(false);
+    }
     return;
   }
+
+  await win.setAlwaysOnTop(false);
   await win.unmaximize();
   await win.setDecorations(true);
   await win.setResizable(true);
-  await win.setSize(new LogicalSize(1280, 720));
-  await win.center();
+
+  const width = 1280;
+  const height = 720;
+  await win.setSize(new LogicalSize(width, height));
+
+  const monitor = await currentMonitor();
+  if (monitor) {
+    const scale = monitor.scaleFactor;
+    const x = monitor.position.x + (monitor.size.width - width * scale) / 2;
+    const y = monitor.position.y + (monitor.size.height - height * scale) / 2;
+    await win.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
+  } else {
+    await win.center();
+  }
 }
 
 export async function setWindowMode(next: WindowMode) {
@@ -183,7 +190,9 @@ export function useWindowMode() {
   useEffect(() => {
     const update = () => setTick((n) => n + 1);
     listeners.add(update);
-    return () => { listeners.delete(update) };
+    return () => {
+      listeners.delete(update);
+    };
   }, []);
   return windowMode;
 }

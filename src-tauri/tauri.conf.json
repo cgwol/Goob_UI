@@ -13,10 +13,11 @@
     "windows": [
       {
         "title": "g_gui",
-        "width": 1920,
-        "height": 1080,
+        "width": 1280,
+        "height": 720,
         "fullscreen": false,
-        "decorations": true,
+        "decorations": false,
+        "maximized": true,
         "alwaysOnTop": false,
         "resizable": true
       }

@@ -7,7 +7,7 @@ import { setInputMode, useInputMode, getPad } from "./input-mode";
 import { Games } from "./pages/Games";
 import { Apps } from "./pages/Apps";
 import { Settings } from "./pages/Settings";
-import { getDeadzone } from "./settings";
+import { getDeadzone, applyWindowMode, getWindowMode } from "./settings";
 import { useSystemSounds } from "./sound";
 
 const TILES = ["Games", "Apps", "Settings"];
@@ -233,6 +233,9 @@ function Home() {
 export default function App() {
   useCursorMode();
   useSystemSounds();
+  useEffect(() => {
+    void applyWindowMode(getWindowMode());
+  }, []);
   return (
     <Routes>
       <Route path="/" element={<Home />} />
