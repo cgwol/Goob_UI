@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
-import { LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
+import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 
 export type Sensitivity = "Low" | "Medium" | "High";
 export type Theme = "Dark" | "Light" | "Forest" | "Ocean" | "Black";
 export type Volume = "Off" | "Low" | "Medium" | "High";
 export type WindowMode = "Windowed fullscreen" | "Fullscreen" | "Windowed";
+export type Resolution = "720p" | "1080p" | "1440p" | "4K";
 
 const KEY = "sensitivity";
 const THEME_KEY = "theme";
@@ -14,12 +15,21 @@ const VOLUME_KEY = "volume";
 const VOLUMES: Volume[] = ["Off", "Low", "Medium", "High"];
 const WINDOW_KEY = "window-mode";
 const WINDOW_MODES: WindowMode[] = ["Windowed fullscreen", "Fullscreen", "Windowed"];
+const RES_KEY = "resolution";
+const RESOLUTIONS: Resolution[] = ["720p", "1080p", "1440p", "4K"];
+const RES_SIZE: Record<Resolution, { width: number; height: number }> = {
+  "720p": { width: 1280, height: 720 },
+  "1080p": { width: 1920, height: 1080 },
+  "1440p": { width: 2560, height: 1440 },
+  "4K": { width: 3840, height: 2160 },
+};
 
 let sensitivity: Sensitivity = load();
 let theme: Theme = loadTheme();
 const listeners = new Set<() => void>();
 let volume: Volume = loadVolume();
 let windowMode: WindowMode = loadWindow();
+let resolution: Resolution = loadResolution();
 
 function load(): Sensitivity {
   const saved = localStorage.getItem(KEY);
@@ -29,6 +39,11 @@ function load(): Sensitivity {
 function loadTheme(): Theme {
   const saved = localStorage.getItem(THEME_KEY);
   return THEMES.includes(saved as Theme) ? (saved as Theme) : "Dark";
+}
+
+function loadResolution(): Resolution {
+  const saved = localStorage.getItem(RES_KEY);
+  return RESOLUTIONS.includes(saved as Resolution) ? (saved as Resolution) : "720p";
 }
 
 function emit() {
@@ -137,12 +152,43 @@ export function getWindowMode() {
   return windowMode;
 }
 
+export function getResolution() {
+  return resolution;
+}
+
+export function setResolution(next: Resolution) {
+  resolution = next;
+  localStorage.setItem(RES_KEY, next);
+  emit();
+  if (windowMode !== "Fullscreen") void applyWindowMode(windowMode);
+}
+
+export function useResolution() {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const update = () => setTick((n) => n + 1);
+    listeners.add(update);
+    return () => {
+      listeners.delete(update);
+    };
+  }, []);
+  return resolution;
+}
+
+function targetSize(monitor?: { size: { width: number; height: number } } | null) {
+  const picked = RES_SIZE[resolution];
+  if (!monitor) return { ...picked, fills: false };
+  const width = Math.min(picked.width, monitor.size.width);
+  const height = Math.min(picked.height, monitor.size.height);
+  const fills = width >= monitor.size.width - 8 && height >= monitor.size.height - 8;
+  return { width, height, fills };
+}
+
 async function coverMonitor() {
   const win = getCurrentWindow();
   const monitor = await currentMonitor();
   if (!monitor) return;
 
-  // Windows draws an invisible border inside a borderless window. Shift past it.
   const pad = Math.round(8 * monitor.scaleFactor);
   await win.setDecorations(false);
   await win.setShadow(false).catch(() => {});
@@ -161,6 +207,33 @@ async function coverMonitor() {
   await win.setSize(size);
 }
 
+async function placeSized(decorated: boolean) {
+  const win = getCurrentWindow();
+  const monitor = await currentMonitor();
+  const { width, height } = targetSize(monitor);
+
+  await win.setAlwaysOnTop(false);
+  await win.unmaximize();
+  await win.setDecorations(decorated);
+  await win.setShadow(decorated).catch(() => {});
+  await win.setResizable(decorated);
+  await wait(80);
+  await win.setSize(new PhysicalSize(width, height));
+  await wait(80);
+
+  if (!monitor) {
+    await win.center();
+    return;
+  }
+
+  const outer = await win.outerSize().catch(() => null);
+  const w = outer?.width ?? width;
+  const h = outer?.height ?? height;
+  const x = monitor.position.x + (monitor.size.width - w) / 2;
+  const y = monitor.position.y + (monitor.size.height - h) / 2;
+  await win.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
+}
+
 export async function applyWindowMode(mode: WindowMode) {
   const win = getCurrentWindow();
 
@@ -175,35 +248,16 @@ export async function applyWindowMode(mode: WindowMode) {
   await wait(80);
 
   if (mode === "Windowed fullscreen") {
-    await coverMonitor();
+    const monitor = await currentMonitor();
+    if (targetSize(monitor).fills) {
+      await coverMonitor();
+      return;
+    }
+    await placeSized(false);
     return;
   }
 
-  await win.setAlwaysOnTop(false);
-  await win.unmaximize();
-  await win.setDecorations(true);
-  await win.setShadow(true).catch(() => {});
-  await win.setResizable(true);
-
-  const width = 1280;
-  const height = 720;
-  await win.setSize(new LogicalSize(width, height));
-  await wait(80);
-
-  const monitor = await currentMonitor();
-  const outer = await win.outerSize().catch(() => null);
-  if (monitor && outer) {
-    const x = monitor.position.x + (monitor.size.width - outer.width) / 2;
-    const y = monitor.position.y + (monitor.size.height - outer.height) / 2;
-    await win.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
-  } else if (monitor) {
-    const scale = monitor.scaleFactor;
-    const x = monitor.position.x + (monitor.size.width - width * scale) / 2;
-    const y = monitor.position.y + (monitor.size.height - height * scale) / 2;
-    await win.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
-  } else {
-    await win.center();
-  }
+  await placeSized(true);
 }
 
 export async function setWindowMode(next: WindowMode) {
@@ -229,9 +283,12 @@ applyTheme();
 
 getCurrentWindow().onFocusChanged(({ payload: focused }) => {
   if (getWindowMode() !== "Windowed fullscreen") return;
-  if (focused) {
-    void coverMonitor();
-  } else {
+  if (!focused) {
     void getCurrentWindow().setAlwaysOnTop(false);
+    return;
   }
+  void (async () => {
+    const monitor = await currentMonitor();
+    if (targetSize(monitor).fills) await coverMonitor();
+  })();
 });

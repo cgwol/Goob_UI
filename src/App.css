@@ -75,6 +75,17 @@ body,
   font-family: system-ui, sans-serif;
 }
 
+#root {
+  container-type: size;
+}
+
+html.res-scaled #root {
+  width: var(--ui-w);
+  height: var(--ui-h);
+  transform: scale(var(--ui-scale));
+  transform-origin: top left;
+}
+
 .shell {
   height: 100vh;
   display: flex;
