@@ -73,3 +73,9 @@ export function getPad(): Gamepad | null {
   const real = pads.find((p) => !/steam|virtual|valve/i.test(p.id));
   return real ?? pads[0] ?? null;
 }
+
+export function setPadChoice(next: PadChoice) {
+  padChoice = next;
+  localStorage.setItem(PAD_KEY, padChoice);
+  emit();
+}

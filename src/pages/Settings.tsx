@@ -2,10 +2,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { SideMenu } from "../components/SideMenu";
-import { useInputMode, getPad, cyclePadChoice } from "../input-mode";
-import { cycleSensitivity, getDeadzone, useSensitivity, cycleTheme, useTheme } from "../settings";
+import { useInputMode, getPad, setPadChoice, type PadChoice } from "../input-mode";
+import {
+  getDeadzone,
+  useSensitivity,
+  useTheme,
+  setSensitivity,
+  setTheme,
+  type Sensitivity,
+  type Theme,
+} from "../settings";
 
 const ITEMS = ["Start with Windows", "Controller Stick Sensitivity", "Controller Legend", "Theme"] as const;
+const SENS: Sensitivity[] = ["Low", "Medium", "High"];
+const LEGENDS: PadChoice[] = ["auto detection", "playstation", "xbox", "nintendo", "generic"];
+const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Black"];
+
+type Drop = "sens" | "legend" | "theme" | null;
+
+function legendLabel(value: PadChoice) {
+  return value === "auto detection" ? "Auto" : value[0].toUpperCase() + value.slice(1);
+}
 
 export function Settings() {
   const navigate = useNavigate();
@@ -21,6 +38,12 @@ export function Settings() {
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
   const [startup, setStartup] = useState(false);
+  const [drop, setDrop] = useState<Drop>(null);
+  const dropRef = useRef(drop);
+  dropRef.current = drop;
+  const [dropFocus, setDropFocus] = useState(0);
+  const dropFocusRef = useRef(dropFocus);
+  dropFocusRef.current = dropFocus;
 
   useEffect(() => {
     isEnabled().then(setStartup).catch((err) => console.error(err));
@@ -40,34 +63,70 @@ export function Settings() {
     }
   };
 
+  const options = () => {
+    if (dropRef.current === "sens") return SENS;
+    if (dropRef.current === "legend") return LEGENDS;
+    if (dropRef.current === "theme") return THEMES;
+    return [];
+  };
+
+  const openDrop = (kind: Drop) => {
+    const list = kind === "sens" ? SENS : kind === "legend" ? LEGENDS : THEMES;
+    const current = kind === "sens" ? sensitivity : kind === "legend" ? padChoice : theme;
+    setDropFocus(Math.max(0, list.indexOf(current as never)));
+    setDrop(kind);
+  };
+
+  const pick = () => {
+    const list = options();
+    const chosen = list[dropFocusRef.current];
+    if (dropRef.current === "sens") setSensitivity(chosen as Sensitivity);
+    if (dropRef.current === "legend") setPadChoice(chosen as PadChoice);
+    if (dropRef.current === "theme") setTheme(chosen as Theme);
+    setDrop(null);
+  };
+
   const choose = () => {
     const item = ITEMS[focusedRef.current];
     if (item === "Start with Windows") void toggleStartup();
-    if (item === "Controller Stick Sensitivity") cycleSensitivity();
-    if (item === "Controller Legend") cyclePadChoice();
-    if (item === "Theme") cycleTheme();
+    if (item === "Controller Stick Sensitivity") openDrop("sens");
+    if (item === "Controller Legend") openDrop("legend");
+    if (item === "Theme") openDrop("theme");
   };
 
   const value = (label: (typeof ITEMS)[number]) => {
     if (label === "Start with Windows") return startup ? "On" : "Off";
     if (label === "Controller Stick Sensitivity") return sensitivity;
     if (label === "Theme") return theme;
-    return padChoice === "auto detection" ? "Auto" : padChoice[0].toUpperCase() + padChoice.slice(1);
+    return legendLabel(padChoice);
   };
-
-  
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Backspace") {
         e.preventDefault();
+        if (dropRef.current) {
+          setDrop(null);
+          return;
+        }
         navigate("/");
       }
-      if (e.key === "Escape" && !menuOpenRef.current) {
-        setMenuOpen(true);
+      if (e.key === "Escape") {
+        if (dropRef.current) {
+          setDrop(null);
+          return;
+        }
+        if (!menuOpenRef.current) setMenuOpen(true);
         return;
       }
       if (menuOpenRef.current) return;
+      if (dropRef.current) {
+        const count = options().length;
+        if (e.key === "ArrowUp") setDropFocus((f) => (f - 1 + count) % count);
+        if (e.key === "ArrowDown") setDropFocus((f) => (f + 1) % count);
+        if (e.key === "Enter") pick();
+        return;
+      }
       if (e.key === "ArrowUp") setFocused((f) => (f - 1 + ITEMS.length) % ITEMS.length);
       if (e.key === "ArrowDown") setFocused((f) => (f + 1) % ITEMS.length);
       if (e.key === "Enter") choose();
@@ -100,25 +159,44 @@ export function Settings() {
         const now = performance.now();
 
         if (!ps && !start) armed = true;
-        if (armed && !menuOpenRef.current && (ps || start) && !prevMenu) setMenuOpen(true);
-        if (circle && !prevCircle && !menuOpenRef.current) navigate("/");
+        if (armed && !menuOpenRef.current && !dropRef.current && (ps || start) && !prevMenu) setMenuOpen(true);
+        if (circle && !prevCircle && !menuOpenRef.current) {
+          if (dropRef.current) setDrop(null);
+          else navigate("/");
+        }
 
         if (!menuOpenRef.current) {
+          const count = dropRef.current ? options().length : ITEMS.length;
           const active = up && !down ? "up" : down && !up ? "down" : null;
           if (active !== holdDir) {
             holdDir = active;
             holdSince = now;
             lastFire = now;
-            if (active === "up") setFocused((f) => (f - 1 + ITEMS.length) % ITEMS.length);
-            if (active === "down") setFocused((f) => (f + 1) % ITEMS.length);
+            if (active === "up") {
+              if (dropRef.current) setDropFocus((f) => (f - 1 + count) % count);
+              else setFocused((f) => (f - 1 + count) % count);
+            }
+            if (active === "down") {
+              if (dropRef.current) setDropFocus((f) => (f + 1) % count);
+              else setFocused((f) => (f + 1) % count);
+            }
           } else if (active && now - holdSince >= 420 && now - lastFire >= 180) {
             lastFire = now;
-            if (active === "up") setFocused((f) => (f - 1 + ITEMS.length) % ITEMS.length);
-            if (active === "down") setFocused((f) => (f + 1) % ITEMS.length);
+            if (active === "up") {
+              if (dropRef.current) setDropFocus((f) => (f - 1 + count) % count);
+              else setFocused((f) => (f - 1 + count) % count);
+            }
+            if (active === "down") {
+              if (dropRef.current) setDropFocus((f) => (f + 1) % count);
+              else setFocused((f) => (f + 1) % count);
+            }
           }
 
           if (!cross) armedCross = true;
-          if (armedCross && cross && !prevCross) choose();
+          if (armedCross && cross && !prevCross) {
+            if (dropRef.current) pick();
+            else choose();
+          }
         }
 
         prevCircle = circle;
@@ -134,12 +212,15 @@ export function Settings() {
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKey);
     };
-  }, [navigate, startup]);
+  }, [navigate, startup, sensitivity, theme, padChoice]);
 
   const backIcon =
     mode === "keyboard" ? "⌫" : mode === "gamepad" && padKind === "playstation" ? "○" : mode === "gamepad" ? "B" : "";
   const menuIcon =
     mode === "keyboard" ? "Esc" : mode === "gamepad" && padKind === "playstation" ? "OPTIONS" : mode === "gamepad" ? "☰" : "";
+
+  const dropList =
+    drop === "sens" ? SENS : drop === "legend" ? LEGENDS : drop === "theme" ? THEMES : [];
 
   return (
     <div className="shell">
@@ -155,21 +236,46 @@ export function Settings() {
 
       <div className="settings">
         {ITEMS.map((label, i) => (
-          <button
-            key={label}
-            type="button"
-            className={i === focused ? "setting focused" : "setting"}
-            onMouseEnter={() => setFocused(i)}
-            onClick={() => {
-              setFocused(i);
-              if (label === "Start with Windows") void toggleStartup();
-              if (label === "Controller Stick Sensitivity") cycleSensitivity();
-              if (label === "Controller Legend") cyclePadChoice();
-            }}
-          >
-            <span>{label}</span>
-            <span className="setting-value">{value(label)}</span>
-          </button>
+          <div key={label} className="setting-wrap">
+            <button
+              type="button"
+              className={i === focused ? "setting focused" : "setting"}
+              onMouseEnter={() => setFocused(i)}
+              onClick={() => {
+                setFocused(i);
+                if (label === "Start with Windows") void toggleStartup();
+                if (label === "Controller Stick Sensitivity") openDrop("sens");
+                if (label === "Controller Legend") openDrop("legend");
+                if (label === "Theme") openDrop("theme");
+              }}
+            >
+              <span>{label}</span>
+              <span className="setting-value">{value(label)}</span>
+            </button>
+            {((label === "Controller Stick Sensitivity" && drop === "sens") ||
+              (label === "Controller Legend" && drop === "legend") ||
+              (label === "Theme" && drop === "theme")) && (
+              <div className="dropdown">
+                {dropList.map((option, n) => (
+                  <button
+                    key={option}
+                    type="button"
+                    className={n === dropFocus ? "dropdown-item focused" : "dropdown-item"}
+                    onMouseEnter={() => setDropFocus(n)}
+                    onClick={() => {
+                      setDropFocus(n);
+                      if (drop === "sens") setSensitivity(option as Sensitivity);
+                      if (drop === "legend") setPadChoice(option as PadChoice);
+                      if (drop === "theme") setTheme(option as Theme);
+                      setDrop(null);
+                    }}
+                  >
+                    {drop === "legend" ? legendLabel(option as PadChoice) : option}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </div>
 

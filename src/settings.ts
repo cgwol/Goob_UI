@@ -34,12 +34,12 @@ export function getSensitivity() {
   return sensitivity;
 }
 
-export function cycleSensitivity() {
-  sensitivity = ORDER[(ORDER.indexOf(sensitivity) + 1) % ORDER.length];
-  localStorage.setItem(KEY, sensitivity);
-  emit();
-  return sensitivity;
-}
+// export function cycleSensitivity() {
+//   sensitivity = ORDER[(ORDER.indexOf(sensitivity) + 1) % ORDER.length];
+//   localStorage.setItem(KEY, sensitivity);
+//   emit();
+//   return sensitivity;
+// }
 
 export function getDeadzone() {
   if (sensitivity === "High") return 0.35;
@@ -51,13 +51,13 @@ export function getTheme() {
   return theme;
 }
 
-export function cycleTheme() {
-  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-  localStorage.setItem(THEME_KEY, theme);
-  applyTheme();
-  emit();
-  return theme;
-}
+// export function cycleTheme() {
+//   theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+//   localStorage.setItem(THEME_KEY, theme);
+//   applyTheme();
+//   emit();
+//   return theme;
+// }
 
 export function useSensitivity() {
   const [, setTick] = useState(0);
@@ -81,6 +81,19 @@ export function useTheme() {
     };
   }, []);
   return theme;
+}
+
+export function setSensitivity(next: Sensitivity) {
+  sensitivity = next;
+  localStorage.setItem(KEY, sensitivity);
+  emit();
+}
+
+export function setTheme(next: Theme) {
+  theme = next;
+  localStorage.setItem(THEME_KEY, theme);
+  applyTheme();
+  emit();
 }
 
 applyTheme();
