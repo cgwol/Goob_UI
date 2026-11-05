@@ -41,6 +41,17 @@ First launch may take a minute while Rust compiles. Subsequent starts are much f
 - Sound effects and animations
 - Hide or minimize the app when a game launches
 
+### Phase 4 Settings
+- Start with Windows
+- Controller Sensitivity in App
+- Controller Legends 
+- Theme
+- System Sounds
+- Full Screen Settings
+- Resolution Settings
+- Clear Library
+- Return Shortcut
+
 ## Tech Stack
 
 - **Frontend**: React 19 + TypeScript + Vite

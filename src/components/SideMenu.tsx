@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { useInputMode, getPad } from "../input-mode";
+import { getDeadzone } from "../settings";
+import { play } from "../sound";
 
 const ITEMS = ["Home", "Settings", "Close"] as const;
 const POWER = ["Minimize", "Close app", "Sleep", "Power off"] as const;
@@ -54,6 +56,7 @@ export function SideMenu({
       setPowerOpen(false);
       return;
     }
+    play("menu")
     setFocused(0);
 
     const onKey = (e: KeyboardEvent) => {
@@ -66,6 +69,7 @@ export function SideMenu({
         onClose();
       }
       if (e.key === "ArrowUp") {
+        play("move");
         setFocused(
           (f) =>
             (f - 1 + (powerRef.current ? POWER.length : ITEMS.length)) %
@@ -73,6 +77,7 @@ export function SideMenu({
         );
       }
       if (e.key === "ArrowDown") {
+        play("move");
         setFocused(
           (f) => (f + 1) % (powerRef.current ? POWER.length : ITEMS.length),
         );
@@ -94,16 +99,24 @@ export function SideMenu({
       if (!alive) return;
       const pad = getPad();
       if (pad) {
-        const up = (pad.axes[1] ?? 0) < -0.6 || !!pad.buttons[12]?.pressed;
-        const down = (pad.axes[1] ?? 0) > 0.6 || !!pad.buttons[13]?.pressed;
+        const zone = getDeadzone();
+        const y = pad.axes[1] ?? 0;
+        const up = y < -zone || !!pad.buttons[12]?.pressed;
+        const down = y > zone || !!pad.buttons[13]?.pressed;
         const cross = !!pad.buttons[0]?.pressed;
         const circle = !!pad.buttons[1]?.pressed;
         const ps = !!pad.buttons[16]?.pressed;
         const start = !!pad.buttons[9]?.pressed;
         const count = powerRef.current ? POWER.length : ITEMS.length;
 
-        if (up && !prevUp) setFocused((f) => (f - 1 + count) % count);
-        if (down && !prevDown) setFocused((f) => (f + 1) % count);
+        if (up && !prevUp) {
+          play("move");
+          setFocused((f) => (f - 1 + count) % count);
+        }
+        if (down && !prevDown) {
+          play("move");
+          setFocused((f) => (f + 1) % count);
+        }
         if (cross && !prevCross)
           choose((powerRef.current ? POWER : ITEMS)[focusedRef.current]);
 
@@ -147,7 +160,10 @@ export function SideMenu({
             key={label}
             type="button"
             className={i === focused ? "menu-item focused" : "menu-item"}
-            onMouseEnter={() => setFocused(i)}
+            onMouseEnter={() => {
+              if (i !== focused) play("move");
+              setFocused(i);
+            }}
             onClick={() => choose(label)}
           >
             {label}

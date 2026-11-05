@@ -1,11 +1,14 @@
 import "./App.css";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { Page } from "./pages/Page";
+// import { Page } from "./pages/Page";
 import { SideMenu } from "./components/SideMenu";
 import { setInputMode, useInputMode, getPad } from "./input-mode";
 import { Games } from "./pages/Games";
 import { Apps } from "./pages/Apps";
+import { Settings } from "./pages/Settings";
+import { getDeadzone, applyWindowMode, getWindowMode } from "./settings";
+import { useSystemSounds } from "./sound";
 
 const TILES = ["Games", "Apps", "Settings"];
 
@@ -15,21 +18,21 @@ function useCursorMode() {
     const show = () => document.body.classList.remove("cursor-hidden");
 
     const onKey = () => {
-      setInputMode("keyboard"); 
+      setInputMode("keyboard");
       hide();
     };
     const onMouse = (e: MouseEvent) => {
       if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) {
-        setInputMode("mouse"); 
+        setInputMode("mouse");
         show();
       }
     };
     const onMouseDown = () => {
-      setInputMode("mouse"); 
+      setInputMode("mouse");
       show();
     };
     const onWheel = () => {
-      setInputMode("mouse"); 
+      setInputMode("mouse");
       show();
     };
 
@@ -137,9 +140,10 @@ function Home() {
       const pad = getPad();
 
       if (pad) {
+        const zone = getDeadzone();
         const x = pad.axes[0] ?? 0;
-        const left = x < -0.6 || !!pad.buttons[14]?.pressed;
-        const right = x > 0.6 || !!pad.buttons[15]?.pressed;
+        const left = x < -zone || !!pad.buttons[14]?.pressed;
+        const right = x > zone || !!pad.buttons[15]?.pressed;
         const cross = !!pad.buttons[0]?.pressed;
         const circle = !!pad.buttons[1]?.pressed;
         const ps = !!pad.buttons[16]?.pressed;
@@ -228,12 +232,16 @@ function Home() {
 
 export default function App() {
   useCursorMode();
+  useSystemSounds();
+  useEffect(() => {
+    void applyWindowMode(getWindowMode());
+  }, []);
   return (
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/games" element={<Games />} />
       <Route path="/apps" element={<Apps />} />
-      <Route path="/settings" element={<Page title="Settings" />} />
+      <Route path="/settings" element={<Settings />} />
     </Routes>
   );
 }

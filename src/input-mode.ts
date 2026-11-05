@@ -2,10 +2,20 @@ import { useEffect, useState } from "react";
 
 export type InputMode = "mouse" | "keyboard" | "gamepad";
 export type PadKind = "playstation" | "xbox" | "nintendo" | "generic";
+export type PadChoice = "auto detection" | PadKind;
+
+const PAD_KEY = "pad-legend";
+const PAD_ORDER: PadChoice[] = ["auto detection", "playstation", "xbox", "nintendo", "generic"];
 
 let mode: InputMode = "mouse";
 let padKind: PadKind = "generic";
+let padChoice: PadChoice = loadPad();
 const listeners = new Set<() => void>();
+
+function loadPad(): PadChoice {
+  const saved = localStorage.getItem(PAD_KEY);
+  return PAD_ORDER.includes(saved as PadChoice) ? (saved as PadChoice) : "auto detection";
+}
 
 function emit() {
   listeners.forEach((fn) => fn());
@@ -28,6 +38,21 @@ export function detectPad(id: string): PadKind {
   return "generic";
 }
 
+export function getPadChoice() {
+  return padChoice;
+}
+
+export function cyclePadChoice() {
+  padChoice = PAD_ORDER[(PAD_ORDER.indexOf(padChoice) + 1) % PAD_ORDER.length];
+  localStorage.setItem(PAD_KEY, padChoice);
+  emit();
+  return padChoice;
+}
+
+function shownPad(): PadKind {
+  return padChoice === "auto detection" ? padKind : padChoice;
+}
+
 export function useInputMode() {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -37,7 +62,7 @@ export function useInputMode() {
       listeners.delete(update);
     };
   }, []);
-  return { mode, padKind };
+  return { mode, padKind: shownPad(), padChoice };
 }
 
 export function getPad(): Gamepad | null {
@@ -47,4 +72,10 @@ export function getPad(): Gamepad | null {
   );
   const real = pads.find((p) => !/steam|virtual|valve/i.test(p.id));
   return real ?? pads[0] ?? null;
+}
+
+export function setPadChoice(next: PadChoice) {
+  padChoice = next;
+  localStorage.setItem(PAD_KEY, padChoice);
+  emit();
 }

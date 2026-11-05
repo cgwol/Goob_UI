@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-dialog";
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core"; // CHANGE
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
+import { getDeadzone } from "../settings";
+import { play } from "../sound";
 
 type AppItem = { id: string; name: string; path: string; image?: string; lastPlayed?: number };
 
@@ -24,8 +26,11 @@ function nameFromPath(path: string) {
   return file.replace(/\.(app|exe|bat)$/i, "");
 }
 
+// CHANGE: file path goes through the asset protocol, data urls stay as-is
 function artSrc(app: AppItem) {
-  return app.image ?? "";
+  if (!app.image) return "";
+  if (app.image.startsWith("data:") || app.image.startsWith("http")) return app.image;
+  return convertFileSrc(app.image);
 }
 
 export function Apps() {
@@ -63,12 +68,36 @@ export function Apps() {
     localStorage.setItem(KEY, JSON.stringify(apps));
   }, [apps]);
 
+  // CHANGE: write any old base64 images out to disk once
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const current = appsRef.current;
+      const next = await Promise.all(
+        current.map(async (a) => {
+          if (!a.image?.startsWith("data:")) return a;
+          try {
+            const path = await invoke<string>("save_data_url", { id: a.id, dataUrl: a.image });
+            return { ...a, image: path };
+          } catch {
+            return a;
+          }
+        }),
+      );
+      if (alive && next.some((a, i) => a.image !== current[i]?.image)) setApps(next);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useEffect(() => {
     const el = rowRef.current?.children[focused] as HTMLElement | undefined;
     el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [focused]);
 
   const launch = (app: AppItem) => {
+    play("launch");
     const now = Date.now();
     setApps((list) => {
       const next = list.map((a) => (a.id === app.id ? { ...a, lastPlayed: now } : a));
@@ -79,7 +108,8 @@ export function Apps() {
     invoke("launch_path", { path: app.path }).catch((err) => console.error(err));
   };
 
-  const pickImage = async () => {
+  // CHANGE: copy the file into the app data folder and store the path
+  const pickImage = async (id: string) => {
     const picked = await open({
       title: "Choose a tile image",
       multiple: false,
@@ -87,7 +117,7 @@ export function Apps() {
       filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
     });
     if (typeof picked !== "string") return null;
-    return invoke<string>("read_image", { path: picked });
+    return invoke<string>("save_tile_image", { id, path: picked });
   };
 
   const addApp = async () => {
@@ -151,8 +181,11 @@ export function Apps() {
     setMenuFor(null);
   };
 
+  // CHANGE: remove the image file with the tile
   const deleteTile = () => {
     if (!menuFor) return;
+    const app = appsRef.current.find((a) => a.id === menuFor);
+    if (app?.image) invoke("delete_tile_image", { path: app.image }).catch(() => {});
     setApps((list) => list.filter((a) => a.id !== menuFor));
     setMenuFor(null);
     setFocused(0);
@@ -166,7 +199,7 @@ export function Apps() {
         if (picking.current || !id) return;
         picking.current = true;
         try {
-          const image = await pickImage();
+          const image = await pickImage(id); // CHANGE
           if (!image) return;
           setApps((list) => list.map((a) => (a.id === id ? { ...a, image } : a)));
         } finally {
@@ -176,7 +209,6 @@ export function Apps() {
     }, 50);
   };
 
-  // CHANGE: pick the image, do not reopen the tile menu
   const setAddedImage = () => {
     const id = addedId;
     const name = draft.trim();
@@ -189,7 +221,7 @@ export function Apps() {
         if (picking.current || !id) return;
         picking.current = true;
         try {
-          const image = await pickImage();
+          const image = await pickImage(id); // CHANGE
           if (!image) return;
           setApps((list) => list.map((a) => (a.id === id ? { ...a, image } : a)));
         } finally {
@@ -264,9 +296,10 @@ export function Apps() {
       const pad = getPad();
       if (pad) {
         const count = appsRef.current.length + 1;
+        const zone = getDeadzone();
         const x = pad.axes[0] ?? 0;
-        const left = x < -0.6 || !!pad.buttons[14]?.pressed;
-        const right = x > 0.6 || !!pad.buttons[15]?.pressed;
+        const left = x < -zone || !!pad.buttons[14]?.pressed;
+        const right = x > zone || !!pad.buttons[15]?.pressed;
         const cross = !!pad.buttons[0]?.pressed;
         const circle = !!pad.buttons[1]?.pressed;
         const triangle = !!pad.buttons[3]?.pressed;
