@@ -1,4 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use tauri::Manager;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -246,86 +247,6 @@ fn clear_tiles(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Hide or show the OS cursor immediately.
-/// CSS `cursor: none` does not apply until the next mouse move, which is why
-/// fullscreen never hid the cursor after a controller press.
-/// ShowCursor / CGDisplayHideCursor take effect now. Both are counters, so
-/// this always settles at hidden (-1) or shown (0) no matter how often it runs.
-#[tauri::command]
-fn set_os_cursor(visible: bool) {
-    force_os_cursor(visible);
-}
-
-#[cfg(target_os = "windows")]
-fn force_os_cursor(visible: bool) {
-    #[link(name = "user32")]
-    extern "system" {
-        fn ShowCursor(b_show: i32) -> i32;
-        fn SetCursor(cursor: isize) -> isize;
-        fn LoadCursorW(instance: isize, name: isize) -> isize;
-    }
-    const IDC_ARROW: isize = 32512;
-    unsafe {
-        if visible {
-            let arrow = LoadCursorW(0, IDC_ARROW);
-            if arrow != 0 {
-                SetCursor(arrow);
-            }
-            let mut n = ShowCursor(1);
-            let mut guard = 0;
-            while n < 0 && guard < 16 {
-                n = ShowCursor(1);
-                guard += 1;
-            }
-            while n > 0 && guard < 32 {
-                n = ShowCursor(0);
-                guard += 1;
-            }
-        } else {
-            SetCursor(0);
-            let mut n = ShowCursor(0);
-            let mut guard = 0;
-            while n >= 0 && guard < 16 {
-                n = ShowCursor(0);
-                guard += 1;
-            }
-            while n < -1 && guard < 32 {
-                n = ShowCursor(1);
-                guard += 1;
-            }
-        }
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn force_os_cursor(visible: bool) {
-    #[link(name = "CoreGraphics", kind = "framework")]
-    extern "C" {
-        fn CGMainDisplayID() -> u32;
-        fn CGDisplayHideCursor(display: u32) -> i32;
-        fn CGDisplayShowCursor(display: u32) -> i32;
-        fn CGCursorIsVisible() -> u8;
-    }
-    unsafe {
-        let id = CGMainDisplayID();
-        let mut guard = 0;
-        if visible {
-            while CGCursorIsVisible() == 0 && guard < 8 {
-                CGDisplayShowCursor(id);
-                guard += 1;
-            }
-        } else {
-            while CGCursorIsVisible() != 0 && guard < 8 {
-                CGDisplayHideCursor(id);
-                guard += 1;
-            }
-        }
-    }
-}
-
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
-fn force_os_cursor(_visible: bool) {}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -336,17 +257,18 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            greet,
-            system_action,
-            launch_path,
-            list_steam_games,
-            launch_steam,
-            save_tile_image,
-            save_data_url,
-            delete_tile_image,
-            clear_tiles,
-            set_os_cursor
-        ])
+                    greet,
+                    system_action,
+                    launch_path,
+                    list_steam_games,
+                    launch_steam,
+                    save_tile_image,
+                    save_data_url,
+                    delete_tile_image,
+                    save_data_url,
+                    delete_tile_image,
+                    clear_tiles
+                ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -1,7 +1,6 @@
 import "./App.css";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { invoke } from "@tauri-apps/api/core";
 // import { Page } from "./pages/Page";
 import { SideMenu } from "./components/SideMenu";
 import { setInputMode, useInputMode, getPad } from "./input-mode";
@@ -13,106 +12,80 @@ import { useSystemSounds } from "./sound";
 
 const TILES = ["Games", "Apps", "Settings"];
 
+// CHANGE: rewritten cursor logic
 function useCursorMode() {
   useEffect(() => {
+    const hide = () => document.body.classList.add("cursor-hidden");
+    const show = () => document.body.classList.remove("cursor-hidden");
+
     type Mode = "mouse" | "keyboard" | "gamepad";
     let mode: Mode = "mouse";
-    let shown = true;
     let lastNonMouse = 0;
-    let lastPaint = 0;
+    const COOLDOWN = 500;
 
-    const paint = (visible: boolean, force = false) => {
-      const now = performance.now();
-      if (!force && visible === shown) return;
-      if (force && visible === shown && now - lastPaint < 80) return;
-      shown = visible;
-      lastPaint = now;
-      document.body.classList.toggle("cursor-hidden", !visible);
-      void invoke("set_os_cursor", { visible }).catch(() => {});
-    };
-
-    const hide = (next: Exclude<Mode, "mouse">, padId?: string) => {
+    const go = (next: Mode, padId?: string) => {
       mode = next;
+      if (next === "mouse") {
+        setInputMode("mouse");
+        show();
+        return;
+      }
       lastNonMouse = performance.now();
       if (next === "gamepad" && padId) setInputMode("gamepad", padId);
       else setInputMode(next);
-      paint(false, true);
+      hide();
     };
 
-    const show = () => {
-      if (mode === "mouse" && shown) return;
-      mode = "mouse";
-      setInputMode("mouse");
-      paint(true, true);
-    };
+    const onKey = () => go("keyboard");
 
-    const onKey = () => hide("keyboard");
-
-    const onMouseMove = (e: MouseEvent) => {
-      const moved = Math.abs(e.movementX) + Math.abs(e.movementY);
-      if (mode !== "mouse") {
-        // Fullscreen injects tiny moves on focus. A real move still switches over.
-        if (performance.now() - lastNonMouse < 350 || moved < 8) {
-          paint(false, true);
-          return;
-        }
-      }
-      if (moved < 2) return;
-      show();
+    const onMouse = (e: MouseEvent) => {
+      if (mode !== "mouse" && performance.now() - lastNonMouse < COOLDOWN) return;
+      if (Math.abs(e.movementX) + Math.abs(e.movementY) < 3) return;
+      go("mouse");
     };
 
     const onMouseDown = () => {
-      if (mode !== "mouse" && performance.now() - lastNonMouse < 350) {
-        paint(false, true);
-        return;
-      }
-      show();
+      if (mode !== "mouse" && performance.now() - lastNonMouse < COOLDOWN) return;
+      go("mouse");
     };
 
     const onWheel = () => {
-      if (mode !== "mouse" && performance.now() - lastNonMouse < 350) return;
-      show();
+      if (mode !== "mouse" && performance.now() - lastNonMouse < COOLDOWN) return;
+      go("mouse");
     };
 
     const onFocus = () => {
-      if (document.hidden) return;
-      if (mode !== "mouse") {
-        lastNonMouse = performance.now();
-        paint(false, true);
-      }
-    };
-
-    // ShowCursor is process-wide. Give the cursor back when leaving the app.
-    const onBlur = () => {
-      if (mode !== "mouse") void invoke("set_os_cursor", { visible: true }).catch(() => {});
+      if (mode !== "mouse") hide();
     };
 
     window.addEventListener("keydown", onKey);
-    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mousemove", onMouse);
     window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("wheel", onWheel);
     window.addEventListener("focus", onFocus);
-    window.addEventListener("blur", onBlur);
     document.addEventListener("visibilitychange", onFocus);
 
     let alive = true;
     let raf = 0;
-    let wasActive = false;
+    let prev = "";
 
     const tick = () => {
       if (!alive) return;
+
+      // re-assert hide every frame while not in mouse mode
+      if (mode !== "mouse") hide();
+
       const pad = getPad();
       if (pad) {
         const x = pad.axes[0] ?? 0;
         const y = pad.axes[1] ?? 0;
         const stick = Math.abs(x) > 0.4 || Math.abs(y) > 0.4;
         const pressed = pad.buttons.some((b) => b.pressed);
-        const active = stick || pressed;
-        if (active && (!wasActive || mode !== "gamepad" || shown)) hide("gamepad", pad.id);
-        wasActive = active;
-      } else {
-        wasActive = false;
+        const now = `${stick}:${pressed}`;
+        if ((stick || pressed) && now !== prev) go("gamepad", pad.id);
+        prev = now;
       }
+
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -121,14 +94,11 @@ function useCursorMode() {
       alive = false;
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mousemove", onMouse);
       window.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("focus", onFocus);
-      window.removeEventListener("blur", onBlur);
       document.removeEventListener("visibilitychange", onFocus);
-      document.body.classList.remove("cursor-hidden");
-      void invoke("set_os_cursor", { visible: true }).catch(() => {});
     };
   }, []);
 }
@@ -149,7 +119,7 @@ function Home() {
       : mode === "gamepad" && padKind === "playstation"
         ? "OPTIONS"
         : mode === "gamepad"
-          ? "\u2630"
+          ? "☰"
           : "";
 
   const open = () => navigate("/" + TILES[focusedRef.current].toLowerCase());
