@@ -44,6 +44,7 @@ First launch may take a minute while Rust compiles. Subsequent starts are much f
 ### Phase 4 Settings
 - Start with Windows
 - Controller Sensitivity in App
+- Controller Legends 
 - Theme
 - System Sounds
 - Clear Library

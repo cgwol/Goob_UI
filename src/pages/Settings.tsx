@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { SideMenu } from "../components/SideMenu";
-import { useInputMode, getPad } from "../input-mode";
+import { cycleSensitivity, getDeadzone, useSensitivity } from "../settings";
+import { useInputMode, getPad, cyclePadChoice } from "../input-mode";
 
-const ITEMS = ["Start with Windows"] as const;
+const ITEMS = ["Start with Windows", "Controller Stick Sensitivity", "Controller Legend"] as const;
 
 export function Settings() {
   const navigate = useNavigate();
@@ -12,7 +13,8 @@ export function Settings() {
   const menuOpenRef = useRef(menuOpen);
   menuOpenRef.current = menuOpen;
   const closeMenu = useCallback(() => setMenuOpen(false), []);
-  const { mode, padKind } = useInputMode();
+  const { mode, padKind, padChoice } = useInputMode();
+  const sensitivity = useSensitivity();
 
   const [focused, setFocused] = useState(0);
   const focusedRef = useRef(focused);
@@ -38,7 +40,16 @@ export function Settings() {
   };
 
   const choose = () => {
-    if (ITEMS[focusedRef.current] === "Start with Windows") void toggleStartup();
+    const item = ITEMS[focusedRef.current];
+    if (item === "Start with Windows") void toggleStartup();
+    if (item === "Controller Stick Sensitivity") cycleSensitivity();
+    if (item === "Controller Legend") cyclePadChoice();
+  };
+
+  const value = (label: (typeof ITEMS)[number]) => {
+    if (label === "Start with Windows") return startup ? "On" : "Off";
+    if (label === "Controller Stick Sensitivity") return sensitivity;
+    return padChoice === "auto detection" ? "Auto" : padChoice[0].toUpperCase() + padChoice.slice(1);
   };
 
   useEffect(() => {
@@ -73,9 +84,10 @@ export function Settings() {
       if (!alive) return;
       const pad = getPad();
       if (pad) {
+        const zone = getDeadzone();
         const y = pad.axes[1] ?? 0;
-        const up = y < -0.6 || !!pad.buttons[12]?.pressed;
-        const down = y > 0.6 || !!pad.buttons[13]?.pressed;
+        const up = y < -zone || !!pad.buttons[12]?.pressed;
+        const down = y > zone || !!pad.buttons[13]?.pressed;
         const cross = !!pad.buttons[0]?.pressed;
         const circle = !!pad.buttons[1]?.pressed;
         const ps = !!pad.buttons[16]?.pressed;
@@ -143,10 +155,15 @@ export function Settings() {
             type="button"
             className={i === focused ? "setting focused" : "setting"}
             onMouseEnter={() => setFocused(i)}
-            onClick={() => void toggleStartup()}
+            onClick={() => {
+              setFocused(i);
+              if (label === "Start with Windows") void toggleStartup();
+              if (label === "Controller Stick Sensitivity") cycleSensitivity();
+              if (label === "Controller Legend") cyclePadChoice();
+            }}
           >
             <span>{label}</span>
-            <span className="setting-value">{startup ? "On" : "Off"}</span>
+            <span className="setting-value">{value(label)}</span>
           </button>
         ))}
       </div>

@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
+import { getDeadzone } from "../settings";
 
 type Game = { id: string; name: string; path: string; steamId?: string; image?: string; lastPlayed?: number };
 type SteamGame = { app_id: string; name: string };
@@ -308,9 +309,10 @@ export function Games() {
       const pad = getPad();
       if (pad) {
         const count = gamesRef.current.length + 1;
+        const zone = getDeadzone();
         const x = pad.axes[0] ?? 0;
-        const left = x < -0.6 || !!pad.buttons[14]?.pressed;
-        const right = x > 0.6 || !!pad.buttons[15]?.pressed;
+        const left = x < -zone || !!pad.buttons[14]?.pressed;
+        const right = x > zone || !!pad.buttons[15]?.pressed;
         const cross = !!pad.buttons[0]?.pressed;
         const circle = !!pad.buttons[1]?.pressed;
         const triangle = !!pad.buttons[3]?.pressed;

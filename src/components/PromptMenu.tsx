@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { getPad } from "../input-mode";
+import { getDeadzone } from "../settings";
 
 export type PopupAction = {
   label: string;
@@ -57,8 +58,10 @@ export function Popup({
       const pad = getPad();
       const list = actionsRef.current;
       if (pad) {
-        const up = (pad.axes[1] ?? 0) < -0.6 || !!pad.buttons[12]?.pressed;
-        const down = (pad.axes[1] ?? 0) > 0.6 || !!pad.buttons[13]?.pressed;
+        const zone = getDeadzone();
+        const y = pad.axes[1] ?? 0;
+        const up = y < -zone || !!pad.buttons[12]?.pressed;
+        const down = y > zone || !!pad.buttons[13]?.pressed;
         const cross = !!pad.buttons[0]?.pressed;
         const circle = !!pad.buttons[1]?.pressed;
         const triangle = !!pad.buttons[3]?.pressed;
