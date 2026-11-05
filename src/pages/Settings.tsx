@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
+import { invoke } from "@tauri-apps/api/core"; // CHANGE
 import { SideMenu } from "../components/SideMenu";
+import { Popup } from "../components/PromptMenu"; // CHANGE
 import { useInputMode, getPad, setPadChoice, type PadChoice } from "../input-mode";
 import { play } from "../sound";
 import {
@@ -23,7 +25,16 @@ import {
   type Resolution,
 } from "../settings";
 
-const ITEMS = ["Start with Windows", "Controller Stick Sensitivity", "Controller Legend", "Theme", "System volume", "Window mode", "Resolution"] as const;
+const ITEMS = [
+  "Start with Windows",
+  "Controller Stick Sensitivity",
+  "Controller Legend",
+  "Theme",
+  "System volume",
+  "Window mode",
+  "Resolution",
+  "Clear Library", // CHANGE
+] as const;
 const SENS: Sensitivity[] = ["Low", "Medium", "High"];
 const LEGENDS: PadChoice[] = ["auto detection", "playstation", "xbox", "nintendo", "generic"];
 const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Black"];
@@ -60,6 +71,9 @@ export function Settings() {
   const [dropFocus, setDropFocus] = useState(0);
   const dropFocusRef = useRef(dropFocus);
   dropFocusRef.current = dropFocus;
+  const [confirm, setConfirm] = useState(false); // CHANGE
+  const confirmRef = useRef(confirm);
+  confirmRef.current = confirm;
 
   useEffect(() => {
     isEnabled().then(setStartup).catch((err) => console.error(err));
@@ -77,6 +91,14 @@ export function Settings() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // CHANGE: wipe games, apps, and the tile image files
+  const clearLibrary = async () => {
+    localStorage.removeItem("games");
+    localStorage.removeItem("apps");
+    await invoke("clear_tiles").catch((err) => console.error(err));
+    setConfirm(false);
   };
 
   const options = () => {
@@ -142,6 +164,7 @@ export function Settings() {
     if (item === "System volume") openDrop("volume");
     if (item === "Window mode") openDrop("window");
     if (item === "Resolution") openDrop("resolution");
+    if (item === "Clear Library") setConfirm(true); // CHANGE
   };
 
   const value = (label: (typeof ITEMS)[number]) => {
@@ -151,11 +174,13 @@ export function Settings() {
     if (label === "System volume") return volume;
     if (label === "Window mode") return windowMode;
     if (label === "Resolution") return resolution;
+    if (label === "Clear Library") return ""; // CHANGE
     return legendLabel(padChoice);
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (confirmRef.current) return; // CHANGE
       if (e.key === "Backspace") {
         e.preventDefault();
         if (dropRef.current) {
@@ -199,6 +224,11 @@ export function Settings() {
 
     const tick = () => {
       if (!alive) return;
+      if (confirmRef.current) {
+        // CHANGE
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       const pad = getPad();
       if (pad) {
         const zone = getDeadzone();
@@ -315,6 +345,7 @@ export function Settings() {
                 if (label === "System volume") openDrop("volume");
                 if (label === "Window mode") openDrop("window");
                 if (label === "Resolution") openDrop("resolution");
+                if (label === "Clear Library") setConfirm(true); // CHANGE
               }}
             >
               <span>{label}</span>
@@ -355,6 +386,18 @@ export function Settings() {
           </div>
         ))}
       </div>
+
+      {/* CHANGE */}
+      {confirm && (
+        <Popup
+          title="Clear library?"
+          onClose={() => setConfirm(false)}
+          actions={[
+            { label: "Confirm", onSelect: () => void clearLibrary() },
+            { label: "Cancel", onSelect: () => setConfirm(false) },
+          ]}
+        />
+      )}
 
       <button type="button" className="back" onClick={() => navigate("/")}>
         {backIcon && <span className="keycap">{backIcon}</span>}

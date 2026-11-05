@@ -1,4 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use tauri::Manager;
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -161,24 +163,88 @@ fn launch_steam(app_id: String) -> Result<(), String> {
     Ok(())
 }
 
+fn tiles_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("tiles");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn clear_tile(dir: &std::path::Path, id: &str) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let prefix = format!("{id}.");
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with(&prefix) {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
 #[tauri::command]
-fn read_image(path: String) -> Result<String, String> {
-    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
-    let ext = std::path::Path::new(&path)
+fn save_tile_image(app: tauri::AppHandle, id: String, path: String) -> Result<String, String> {
+    let dir = tiles_dir(&app)?;
+    clear_tile(&dir, &id);
+    let src = std::path::PathBuf::from(&path);
+    let ext = src
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("png")
         .to_lowercase();
-    let mime = match ext.as_str() {
-        "jpg" | "jpeg" => "image/jpeg",
-        "webp" => "image/webp",
-        "gif" => "image/gif",
-        _ => "image/png",
+    let dest = dir.join(format!("{id}.{ext}"));
+    std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+    Ok(dest.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn save_data_url(app: tauri::AppHandle, id: String, data_url: String) -> Result<String, String> {
+    let (mime, b64) = data_url
+        .strip_prefix("data:")
+        .and_then(|rest| rest.split_once(";base64,"))
+        .ok_or("bad data url")?;
+    let ext = match mime {
+        "image/jpeg" => "jpg",
+        "image/webp" => "webp",
+        "image/gif" => "gif",
+        _ => "png",
     };
-    Ok(format!(
-        "data:{mime};base64,{}",
-        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes)
-    ))
+    let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, b64)
+        .map_err(|e| e.to_string())?;
+    let dir = tiles_dir(&app)?;
+    clear_tile(&dir, &id);
+    let dest = dir.join(format!("{id}.{ext}"));
+    std::fs::write(&dest, bytes).map_err(|e| e.to_string())?;
+    Ok(dest.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn delete_tile_image(path: String) -> Result<(), String> {
+    if path.is_empty() || path.starts_with("data:") || path.starts_with("http") {
+        return Ok(());
+    }
+    let file = std::path::Path::new(&path);
+    if file.exists() {
+        std::fs::remove_file(file).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn clear_tiles(app: tauri::AppHandle) -> Result<(), String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("tiles");
+    if dir.exists() {
+        std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -191,13 +257,18 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            greet,
-            system_action,
-            launch_path,
-            list_steam_games,
-            launch_steam,
-            read_image
-        ])
+                    greet,
+                    system_action,
+                    launch_path,
+                    list_steam_games,
+                    launch_steam,
+                    save_tile_image,
+                    save_data_url,
+                    delete_tile_image,
+                    save_data_url,
+                    delete_tile_image,
+                    clear_tiles
+                ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

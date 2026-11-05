@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-dialog";
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core"; // CHANGE
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
@@ -27,8 +27,12 @@ function nameFromPath(path: string) {
   return file.replace(/\.(app|exe)$/i, "");
 }
 
+// CHANGE: file path goes through the asset protocol, data urls and Steam covers stay as-is
 function artSrc(game: Game) {
-  if (game.image) return game.image;
+  if (game.image) {
+    if (game.image.startsWith("data:") || game.image.startsWith("http")) return game.image;
+    return convertFileSrc(game.image);
+  }
   if (game.steamId) return `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.steamId}/library_600x900.jpg`;
   return "";
 }
@@ -71,6 +75,29 @@ export function Games() {
     localStorage.setItem(KEY, JSON.stringify(games));
   }, [games]);
 
+  // CHANGE: write any old base64 images out to disk once
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const current = gamesRef.current;
+      const next = await Promise.all(
+        current.map(async (g) => {
+          if (!g.image?.startsWith("data:")) return g;
+          try {
+            const path = await invoke<string>("save_data_url", { id: g.id, dataUrl: g.image });
+            return { ...g, image: path };
+          } catch {
+            return g;
+          }
+        }),
+      );
+      if (alive && next.some((g, i) => g.image !== current[i]?.image)) setGames(next);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useEffect(() => {
     const el = rowRef.current?.children[focused] as HTMLElement | undefined;
     el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
@@ -93,7 +120,8 @@ export function Games() {
     invoke("launch_path", { path: game.path }).catch((err) => console.error(err));
   };
 
-  const pickImage = async () => {
+  // CHANGE: copy the file into the app data folder and store the path
+  const pickImage = async (id: string) => {
     const picked = await open({
       title: "Choose a tile image",
       multiple: false,
@@ -101,7 +129,7 @@ export function Games() {
       filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
     });
     if (typeof picked !== "string") return null;
-    return invoke<string>("read_image", { path: picked });
+    return invoke<string>("save_tile_image", { id, path: picked });
   };
 
   const addOther = async () => {
@@ -184,8 +212,11 @@ export function Games() {
     setMenuFor(null);
   };
 
+  // CHANGE: remove the image file with the tile
   const deleteTile = () => {
     if (!menuFor) return;
+    const game = gamesRef.current.find((g) => g.id === menuFor);
+    if (game?.image) invoke("delete_tile_image", { path: game.image }).catch(() => {});
     setGames((list) => list.filter((g) => g.id !== menuFor));
     setMenuFor(null);
     setFocused(0);
@@ -199,7 +230,7 @@ export function Games() {
         if (picking.current || !id) return;
         picking.current = true;
         try {
-          const image = await pickImage();
+          const image = await pickImage(id); // CHANGE
           if (!image) return;
           setGames((list) => list.map((g) => (g.id === id ? { ...g, image } : g)));
         } finally {
@@ -209,7 +240,6 @@ export function Games() {
     }, 50);
   };
 
-  // CHANGE: pick the image, do not reopen the tile menu
   const setAddedImage = () => {
     const id = addedId;
     const name = draft.trim();
@@ -222,7 +252,7 @@ export function Games() {
         if (picking.current || !id) return;
         picking.current = true;
         try {
-          const image = await pickImage();
+          const image = await pickImage(id); // CHANGE
           if (!image) return;
           setGames((list) => list.map((g) => (g.id === id ? { ...g, image } : g)));
         } finally {
