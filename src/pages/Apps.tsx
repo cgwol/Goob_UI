@@ -6,6 +6,7 @@ import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
 import { getDeadzone } from "../settings";
+import { play } from "../sound";
 
 type AppItem = { id: string; name: string; path: string; image?: string; lastPlayed?: number };
 
@@ -70,6 +71,7 @@ export function Apps() {
   }, [focused]);
 
   const launch = (app: AppItem) => {
+    play("launch");
     const now = Date.now();
     setApps((list) => {
       const next = list.map((a) => (a.id === app.id ? { ...a, lastPlayed: now } : a));

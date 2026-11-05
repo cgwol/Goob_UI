@@ -6,6 +6,7 @@ import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
 import { getDeadzone } from "../settings";
+import { play } from "../sound";
 
 type Game = { id: string; name: string; path: string; steamId?: string; image?: string; lastPlayed?: number };
 type SteamGame = { app_id: string; name: string };
@@ -76,6 +77,7 @@ export function Games() {
   }, [focused]);
 
   const launch = (game: Game) => {
+    play("launch");
     const now = Date.now();
     setGames((list) => {
       const next = list.map((g) => (g.id === game.id ? { ...g, lastPlayed: now } : g));

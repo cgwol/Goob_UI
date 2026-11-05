@@ -8,6 +8,7 @@ import { Games } from "./pages/Games";
 import { Apps } from "./pages/Apps";
 import { Settings } from "./pages/Settings";
 import { getDeadzone } from "./settings";
+import { useSystemSounds } from "./sound";
 
 const TILES = ["Games", "Apps", "Settings"];
 
@@ -231,6 +232,7 @@ function Home() {
 
 export default function App() {
   useCursorMode();
+  useSystemSounds();
   return (
     <Routes>
       <Route path="/" element={<Home />} />
