@@ -12,34 +12,58 @@ import { useSystemSounds } from "./sound";
 
 const TILES = ["Games", "Apps", "Settings"];
 
+// CHANGE: rewritten cursor logic
 function useCursorMode() {
   useEffect(() => {
     const hide = () => document.body.classList.add("cursor-hidden");
     const show = () => document.body.classList.remove("cursor-hidden");
 
-    const onKey = () => {
-      setInputMode("keyboard");
-      hide();
-    };
-    const onMouse = (e: MouseEvent) => {
-      if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) {
+    type Mode = "mouse" | "keyboard" | "gamepad";
+    let mode: Mode = "mouse";
+    let lastNonMouse = 0;
+    const COOLDOWN = 500;
+
+    const go = (next: Mode, padId?: string) => {
+      mode = next;
+      if (next === "mouse") {
         setInputMode("mouse");
         show();
+        return;
       }
+      lastNonMouse = performance.now();
+      if (next === "gamepad" && padId) setInputMode("gamepad", padId);
+      else setInputMode(next);
+      hide();
     };
+
+    const onKey = () => go("keyboard");
+
+    const onMouse = (e: MouseEvent) => {
+      if (mode !== "mouse" && performance.now() - lastNonMouse < COOLDOWN) return;
+      if (Math.abs(e.movementX) + Math.abs(e.movementY) < 3) return;
+      go("mouse");
+    };
+
     const onMouseDown = () => {
-      setInputMode("mouse");
-      show();
+      if (mode !== "mouse" && performance.now() - lastNonMouse < COOLDOWN) return;
+      go("mouse");
     };
+
     const onWheel = () => {
-      setInputMode("mouse");
-      show();
+      if (mode !== "mouse" && performance.now() - lastNonMouse < COOLDOWN) return;
+      go("mouse");
+    };
+
+    const onFocus = () => {
+      if (mode !== "mouse") hide();
     };
 
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousemove", onMouse);
     window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("wheel", onWheel);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
 
     let alive = true;
     let raf = 0;
@@ -47,19 +71,21 @@ function useCursorMode() {
 
     const tick = () => {
       if (!alive) return;
+
+      // re-assert hide every frame while not in mouse mode
+      if (mode !== "mouse") hide();
+
       const pad = getPad();
       if (pad) {
         const x = pad.axes[0] ?? 0;
         const y = pad.axes[1] ?? 0;
-        const stick = Math.abs(x) > 0.6 || Math.abs(y) > 0.6;
+        const stick = Math.abs(x) > 0.4 || Math.abs(y) > 0.4;
         const pressed = pad.buttons.some((b) => b.pressed);
         const now = `${stick}:${pressed}`;
-        if (now !== prev && (stick || pressed)) {
-          setInputMode("gamepad", pad.id); // CHANGE
-          hide();
-        }
+        if ((stick || pressed) && now !== prev) go("gamepad", pad.id);
         prev = now;
       }
+
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -71,6 +97,8 @@ function useCursorMode() {
       window.removeEventListener("mousemove", onMouse);
       window.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
     };
   }, []);
 }
