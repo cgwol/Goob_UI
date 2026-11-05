@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 
 export type Sensitivity = "Low" | "Medium" | "High";
 export type Theme = "Dark" | "Light" | "Forest" | "Ocean" | "Black";
 export type Volume = "Off" | "Low" | "Medium" | "High";
+export type WindowMode = "Windowed fullscreen" | "Fullscreen" | "Windowed";
 
 const KEY = "sensitivity";
 const THEME_KEY = "theme";
@@ -10,11 +13,14 @@ const ORDER: Sensitivity[] = ["Low", "Medium", "High"];
 const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Black"];
 const VOLUME_KEY = "volume";
 const VOLUMES: Volume[] = ["Off", "Low", "Medium", "High"];
+const WINDOW_KEY = "window-mode";
+const WINDOW_MODES: WindowMode[] = ["Windowed fullscreen", "Fullscreen", "Windowed"];
 
 let sensitivity: Sensitivity = load();
 let theme: Theme = loadTheme();
 const listeners = new Set<() => void>();
 let volume: Volume = loadVolume();
+let windowMode: WindowMode = loadWindow();
 
 function load(): Sensitivity {
   const saved = localStorage.getItem(KEY);
@@ -133,6 +139,53 @@ export function volumeLevel() {
   if (volume === "Low") return 0.25;
   if (volume === "High") return 1;
   return 0.55;
+}
+
+function loadWindow(): WindowMode {
+  const saved = localStorage.getItem(WINDOW_KEY);
+  return WINDOW_MODES.includes(saved as WindowMode) ? (saved as WindowMode) : "Windowed";
+}
+
+export function getWindowMode() {
+  return windowMode;
+}
+
+export async function applyWindowMode(mode: WindowMode) {
+  const win = getCurrentWindow();
+  if (mode === "Fullscreen") {
+    await win.setDecorations(false);
+    await win.setFullscreen(true);
+    return;
+  }
+  await win.setFullscreen(false);
+  if (mode === "Windowed fullscreen") {
+    await win.setDecorations(false);
+    await win.setResizable(true);
+    await win.maximize();
+    return;
+  }
+  await win.unmaximize();
+  await win.setDecorations(true);
+  await win.setResizable(true);
+  await win.setSize(new LogicalSize(1280, 720));
+  await win.center();
+}
+
+export async function setWindowMode(next: WindowMode) {
+  windowMode = next;
+  localStorage.setItem(WINDOW_KEY, next);
+  emit();
+  await applyWindowMode(next);
+}
+
+export function useWindowMode() {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const update = () => setTick((n) => n + 1);
+    listeners.add(update);
+    return () => { listeners.delete(update) };
+  }, []);
+  return windowMode;
 }
 
 applyTheme();

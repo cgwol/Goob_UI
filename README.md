@@ -47,6 +47,8 @@ First launch may take a minute while Rust compiles. Subsequent starts are much f
 - Controller Legends 
 - Theme
 - System Sounds
+- Full Screen Settings
+- Resolution Settings
 - Clear Library
 - Return Shortcut
 
