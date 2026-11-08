@@ -6,9 +6,12 @@ A modern, controller-first desktop interface built with **Tauri + React + TypeSc
 
 Launch Steam games and local apps, navigate with a controller, and run fullscreen like a console.
 
-## How to Install Locally
+## Installation
 
+Download the latest release from the [Releases page](https://github.com/cgwol/react_g_gui/releases).
 
+- **Windows**: Download and run the `.exe` installer
+- - **macOS**: Download the `.dmg`, open it, and drag the app to Applications
 
 ## How to Use the App
 
