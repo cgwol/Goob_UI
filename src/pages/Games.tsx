@@ -1,7 +1,15 @@
+/**
+ * Games library page for Goob UI.
+ * Renders a horizontally scrollable row of game tiles. Games can be local executables
+ * or Steam titles. Tiles are sorted by last-played time. Users can add, rename, set a
+ * custom image (stored on disk via the asset protocol), delete, and launch games.
+ * Full keyboard and gamepad navigation with hold-to-repeat. Triangle / K opens the
+ * per-tile menu. Circle / Backspace returns to the home screen.
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-dialog";
-import { convertFileSrc, invoke } from "@tauri-apps/api/core"; // CHANGE
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
@@ -27,7 +35,10 @@ function nameFromPath(path: string) {
   return file.replace(/\.(app|exe)$/i, "");
 }
 
-// CHANGE: file path goes through the asset protocol, data urls and Steam covers stay as-is
+/**
+ * Resolve the image URL for a tile. Local file paths go through Tauri's asset protocol
+ * (convertFileSrc). Data URLs and remote Steam covers are used as-is.
+ */
 function artSrc(game: Game) {
   if (game.image) {
     if (game.image.startsWith("data:") || game.image.startsWith("http")) return game.image;
@@ -71,11 +82,12 @@ export function Games() {
   steamRef.current = steamGames;
   const rowRef = useRef<HTMLDivElement>(null);
 
+  // Persist the library whenever it changes
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(games));
   }, [games]);
 
-  // CHANGE: write any old base64 images out to disk once
+  // One-time migration: any old base64 images stored in localStorage are written to disk
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -98,6 +110,7 @@ export function Games() {
     };
   }, []);
 
+  // Keep the focused tile scrolled into view
   useEffect(() => {
     const el = rowRef.current?.children[focused] as HTMLElement | undefined;
     el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
@@ -120,7 +133,7 @@ export function Games() {
     invoke("launch_path", { path: game.path }).catch((err) => console.error(err));
   };
 
-  // CHANGE: copy the file into the app data folder and store the path
+  // Open a file picker and copy the chosen image into the app's tile storage
   const pickImage = async (id: string) => {
     const picked = await open({
       title: "Choose a tile image",
@@ -212,7 +225,7 @@ export function Games() {
     setMenuFor(null);
   };
 
-  // CHANGE: remove the image file with the tile
+  // Delete the tile and its image file
   const deleteTile = () => {
     if (!menuFor) return;
     const game = gamesRef.current.find((g) => g.id === menuFor);
@@ -230,7 +243,7 @@ export function Games() {
         if (picking.current || !id) return;
         picking.current = true;
         try {
-          const image = await pickImage(id); // CHANGE
+          const image = await pickImage(id);
           if (!image) return;
           setGames((list) => list.map((g) => (g.id === id ? { ...g, image } : g)));
         } finally {
@@ -252,7 +265,7 @@ export function Games() {
         if (picking.current || !id) return;
         picking.current = true;
         try {
-          const image = await pickImage(id); // CHANGE
+          const image = await pickImage(id);
           if (!image) return;
           setGames((list) => list.map((g) => (g.id === id ? { ...g, image } : g)));
         } finally {
@@ -303,6 +316,7 @@ export function Games() {
     };
     window.addEventListener("keydown", onKey);
 
+    // Gamepad polling loop — paused while any popup or file picker is open
     let alive = true;
     let raf = 0;
     let prevCross = false;
@@ -354,6 +368,7 @@ export function Games() {
 
         const active = left && !right ? "left" : right && !left ? "right" : null;
 
+        // Hold-to-repeat for left/right navigation
         if (active !== holdDir) {
           holdDir = active;
           holdSince = now;

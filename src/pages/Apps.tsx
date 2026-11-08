@@ -1,7 +1,15 @@
+/**
+ * Apps library page for Goob UI.
+ * Nearly identical to the Games page but for local applications (exe and bat files).
+ * Tiles are sorted by last-played time. Users can add, rename, set a custom image
+ * (stored on disk via the asset protocol), delete, and launch apps.
+ * Full keyboard and gamepad navigation with hold-to-repeat. Triangle / K opens the
+ * per-tile menu. Circle / Backspace returns to the home screen.
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-dialog";
-import { convertFileSrc, invoke } from "@tauri-apps/api/core"; // CHANGE
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
@@ -26,7 +34,10 @@ function nameFromPath(path: string) {
   return file.replace(/\.(app|exe|bat)$/i, "");
 }
 
-// CHANGE: file path goes through the asset protocol, data urls stay as-is
+/**
+ * Resolve the image URL for a tile. Local file paths go through Tauri's asset protocol
+ * (convertFileSrc). Data URLs and remote URLs are used as-is.
+ */
 function artSrc(app: AppItem) {
   if (!app.image) return "";
   if (app.image.startsWith("data:") || app.image.startsWith("http")) return app.image;
@@ -64,11 +75,12 @@ export function Apps() {
   addOpenRef.current = addOpen;
   const rowRef = useRef<HTMLDivElement>(null);
 
+  // Persist the library whenever it changes
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(apps));
   }, [apps]);
 
-  // CHANGE: write any old base64 images out to disk once
+  // One-time migration: any old base64 images stored in localStorage are written to disk
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -91,6 +103,7 @@ export function Apps() {
     };
   }, []);
 
+  // Keep the focused tile scrolled into view
   useEffect(() => {
     const el = rowRef.current?.children[focused] as HTMLElement | undefined;
     el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
@@ -108,7 +121,7 @@ export function Apps() {
     invoke("launch_path", { path: app.path }).catch((err) => console.error(err));
   };
 
-  // CHANGE: copy the file into the app data folder and store the path
+  // Open a file picker and copy the chosen image into the app's tile storage
   const pickImage = async (id: string) => {
     const picked = await open({
       title: "Choose a tile image",
@@ -181,7 +194,7 @@ export function Apps() {
     setMenuFor(null);
   };
 
-  // CHANGE: remove the image file with the tile
+  // Delete the tile and its image file
   const deleteTile = () => {
     if (!menuFor) return;
     const app = appsRef.current.find((a) => a.id === menuFor);
@@ -199,7 +212,7 @@ export function Apps() {
         if (picking.current || !id) return;
         picking.current = true;
         try {
-          const image = await pickImage(id); // CHANGE
+          const image = await pickImage(id);
           if (!image) return;
           setApps((list) => list.map((a) => (a.id === id ? { ...a, image } : a)));
         } finally {
@@ -221,7 +234,7 @@ export function Apps() {
         if (picking.current || !id) return;
         picking.current = true;
         try {
-          const image = await pickImage(id); // CHANGE
+          const image = await pickImage(id);
           if (!image) return;
           setApps((list) => list.map((a) => (a.id === id ? { ...a, image } : a)));
         } finally {
@@ -264,6 +277,7 @@ export function Apps() {
     };
     window.addEventListener("keydown", onKey);
 
+    // Gamepad polling loop — paused while any popup or file picker is open
     let alive = true;
     let raf = 0;
     let prevCross = false;
@@ -309,6 +323,7 @@ export function Apps() {
 
         const active = left && !right ? "left" : right && !left ? "right" : null;
 
+        // Hold-to-repeat for left/right navigation
         if (active !== holdDir) {
           holdDir = active;
           holdSince = now;
