@@ -234,7 +234,7 @@ SystemCursor(OnOff=1)   ; INIT = "I","Init"; OFF = 0,"Off"; TOGGLE = -1,"T","Tog
 }
 ```
 
-###Launch Batch File Example with ```CursorHide.ahk```
+### Launch Batch File Example with ```CursorHide.ahk```
 
 ```
 @echo off
