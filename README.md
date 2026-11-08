@@ -1,4 +1,4 @@
-# Goob UI
+# ![icon](/src/assets/32x32.png) Goob UI 
 
 **Version 1.0.0**
 
