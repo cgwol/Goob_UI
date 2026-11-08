@@ -1,4 +1,4 @@
-# g_gui — Console-style PC Interface
+# Goob UI — Console-style PC Interface
 
 A modern, controller-first desktop interface built with **Tauri + React + TypeScript**.
 
