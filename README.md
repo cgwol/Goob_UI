@@ -4,34 +4,11 @@
 
 A modern, controller-first desktop interface built with **Tauri + React + TypeScript**.
 
-Launch Steam games and local apps, navigate with a DualSense (or other) controller, and run fullscreen like a console.
+Launch Steam games and local apps, navigate with a controller, and run fullscreen like a console.
 
 ## How to Install Locally
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) (LTS recommended)
-- [Rust](https://www.rust-lang.org/tools/install) (required for Tauri)
-- Windows, macOS, or Linux
 
-### Steps
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/cgwol/react_g_gui.git
-   cd react_g_gui
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Run in development mode:
-   ```bash
-   npm run dev
-   ```
-4. (Optional) Build a production installer:
-   ```bash
-   npm run tauri build
-   ```
-   The packaged app will be in `src-tauri/target/release/bundle/`.
 
 ## How to Use the App
 
@@ -84,7 +61,196 @@ Apps work the same way as local games (launch, rename, set image, delete, last-p
 
 ## Best Settings for Media Apps
 
-*(Coming later — left blank for now.)*
+Media apps and streaming sites (YouTube, Netflix, Disney+, etc.) work best as dedicated Chrome “app” launches with controller support and automatic cursor hiding.
+
+### Recommended Setup
+
+1. Create a dedicated Chrome profile for each service (keeps logins and settings separate).
+2. Use a ```.bat``` launcher that: 
+      - Starts Chrome in app/fullscreen mode with that profile
+      - Launches an AutoHotkey script to hide the mouse cursor (optional)
+      - Cleans up when the window closes
+3. Install the [Couch Controller Chrome extension](https://chromewebstore.google.com/detail/odlaphcdndfenefjhmoneehgjbcpkhof?utm_source=item-share-cb) in that profile so you can navigate the site with a gamepad. (Other Controller extenstions should work)
+
+### First-Time Setup (per media app)
+
+1. Run a setup batch file that opens the correct Chrome profile and the Couch Controller store page:
+```
+@echo off
+set CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"
+if not exist %CHROME% set CHROME="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+
+set PROFILE=%LOCALAPPDATA%\GoobMedia\Youtube
+if not exist "%PROFILE%" mkdir "%PROFILE%"
+
+%CHROME% --user-data-dir="%PROFILE%" --no-first-run --disable-session-crashed-bubble --new-window https://chromewebstore.google.com/detail/couch-controller/odlaphcdndfenefjhmoneehgjbcpkhof
+```
+2. Sign in to the streaming service and install/enable Couch Controller.
+3. Close the window.
+
+### Launch Batch File Example
+
+1. Create a ```.bat``` launcher 
+```
+@echo off
+
+set CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"
+if not exist %CHROME% set CHROME="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+
+set PROFILE=%LOCALAPPDATA%\GoobMedia\Youtube
+if not exist "%PROFILE%" mkdir "%PROFILE%"
+
+%CHROME% --user-data-dir="%PROFILE%" --app=https://www.youtube.com --start-fullscreen --no-first-run --disable-session-crashed-bubble --new-window
+```
+2. Go to the Apps page.
+3. Add the launch .bat file as an app.
+4. Set a custom tile image (search [SteamGridDB](https://www.steamgriddb.com/) for high-quality artwork for the service).
+5. Launch it from the tile like any other app.
+
+### Launch Batch File Example with Autohotkey for cursor hiding (Optional)
+
+Use an AutoHotkey v1 script (```CursorHide.ahk``) that:
+
+- Hides the system cursor when the batch starts
+- Shows the cursor immediately on mouse movement
+- Hides it again after ~1.5 seconds of no movement
+- Restores the normal cursor and exits when the batch ends (via the lock file)
+
+This gives a clean console-style experience while still allowing mouse use when needed.
+
+** Autohotkey File (```CursorHide.ahk```)**
+
+```
+; AutoHotkey v1 script
+; Hides mouse cursor when started (by your BAT file)
+; Shows cursor immediately when mouse moves
+; Hides again after 1.5 seconds of no movement
+; Restores normal cursor and exits when the BAT file ends (via lock file)
+
+#NoEnv
+#Persistent
+#SingleInstance Force
+SetBatchLines, -1
+
+; Lock file used to detect when the BAT file has finished
+LockFile := A_Temp . "\cursor_hide.lock"
+
+; Exit and restore cursor if lock file disappears
+SetTimer, CheckLock, 500
+
+; Ensure cursor is restored on any exit
+OnExit, RestoreCursor
+
+; Initialize and hide cursor immediately
+SystemCursor("Init")
+SystemCursor("Off")
+
+; Track mouse position and last movement time
+CoordMode, Mouse, Screen
+MouseGetPos, lastX, lastY
+lastMove := A_TickCount
+isHidden := true
+
+; Check mouse movement frequently
+SetTimer, CheckMouse, 50
+
+return
+
+CheckMouse:
+    MouseGetPos, currX, currY
+    if (currX != lastX || currY != lastY) {
+        ; Mouse moved — show cursor and reset timer
+        if (isHidden) {
+            SystemCursor("On")
+            isHidden := false
+        }
+        lastX := currX
+        lastY := currY
+        lastMove := A_TickCount
+    } else if (!isHidden && (A_TickCount - lastMove > 1500)) {
+        ; Idle for 1.5 seconds — hide again
+        SystemCursor("Off")
+        isHidden := true
+    }
+return
+
+CheckLock:
+    if (!FileExist(LockFile)) {
+        ; BAT has ended — exit (OnExit will restore cursor)
+        ExitApp
+    }
+return
+
+RestoreCursor:
+    SystemCursor("On")
+    ExitApp
+return
+
+; Optional hotkey to force exit and restore (for testing)
+Esc::ExitApp
+
+; ========== SystemCursor function ==========
+SystemCursor(OnOff=1)   ; INIT = "I","Init"; OFF = 0,"Off"; TOGGLE = -1,"T","Toggle"; ON = others
+{
+    static AndMask, XorMask, $, h_cursor
+        ,c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13 ; system cursors
+        , b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13   ; blank cursors
+        , h1,h2,h3,h4,h5,h6,h7,h8,h9,h10,h11,h12,h13   ; handles of default cursors
+    if (OnOff = "Init" or OnOff = "I" or $ = "")       ; init when requested or at first call
+    {
+        $ = h                                          ; active default cursors
+        VarSetCapacity( h_cursor,4444, 1 )
+        VarSetCapacity( AndMask, 32*4, 0xFF )
+        VarSetCapacity( XorMask, 32*4, 0 )
+        system_cursors = 32512,32513,32514,32515,32516,32642,32643,32644,32645,32646,32648,32649,32650
+        StringSplit c, system_cursors, `,
+        Loop %c0%
+        {
+            h_cursor   := DllCall( "LoadCursor", "Ptr",0, "Ptr",c%A_Index% )
+            h%A_Index% := DllCall( "CopyImage", "Ptr",h_cursor, "UInt",2, "Int",0, "Int",0, "UInt",0 )
+            b%A_Index% := DllCall( "CreateCursor", "Ptr",0, "Int",0, "Int",0
+                , "Int",32, "Int",32, "Ptr",&AndMask, "Ptr",&XorMask )
+        }
+    }
+    if (OnOff = 0 or OnOff = "Off" or $ = "h" and (OnOff < 0 or OnOff = "Toggle" or OnOff = "T"))
+        $ = b  ; use blank cursors
+    else
+        $ = h  ; use the saved cursors
+
+    Loop %c0%
+    {
+        h_cursor := DllCall( "CopyImage", "Ptr",%$%%A_Index%, "UInt",2, "Int",0, "Int",0, "UInt",0 )
+        DllCall( "SetSystemCursor", "Ptr",h_cursor, "UInt",c%A_Index% )
+    }
+}
+```
+
+###Launch Batch File Example with ```CursorHide.ahk```
+
+```
+@echo off
+
+:: Create lock file so the AHK script knows the BAT is running
+echo. > "%TEMP%\cursor_hide.lock"
+
+:: Start the AutoHotkey script (adjust path if needed)
+start "" "CursorHide.ahk"
+
+set CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"
+if not exist %CHROME% set CHROME="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+
+set PROFILE=%LOCALAPPDATA%\SteamMedia\Youtube
+if not exist "%PROFILE%" mkdir "%PROFILE%"
+
+%CHROME% --user-data-dir="%PROFILE%" --app=https://www.youtube.com --start-fullscreen --no-first-run --disable-session-crashed-bubble --new-window
+
+del "%TEMP%\cursor_hide.lock"
+```
+
+### Tips for apps
+- One profile + one launch bat per streaming service works best.
+- Keep Couch Controller enabled in each profile. (Or other controller extension)
+- [SteamGridDB](https://www.steamgriddb.com/) is a great source for consistent, high-quality tile art for media apps.
 
 ## Current Known Issues
 
@@ -139,10 +305,4 @@ Recommended editor setup: VS Code with the Tauri and rust-analyzer extensions.
 
 ## License
 
-**Recommended: MIT License**
-
-MIT is simple, permissive, and the most common choice for personal/open-source projects like this. It lets others use, modify, and distribute the code with minimal restrictions (just keep the copyright notice).
-
-If you want stronger copyleft (derivatives must stay open), consider **GPL-3.0**. If you prefer something more lawyer-friendly with explicit patent grants, **Apache-2.0** is also popular.
-
-Add a `LICENSE` file with the full text of whichever you choose, and put a short notice at the bottom of this README.
+**MIT License**
