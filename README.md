@@ -6,6 +6,10 @@ A modern, controller-first desktop interface built with **Tauri + React + TypeSc
 
 Launch Steam games and local apps, navigate with a controller, and run fullscreen like a console.
 
+### Goob UI Home Screen
+
+![Home](/src/assets/HomeRM.png)
+
 ## Installation
 
 Download the latest release from the [Releases page](https://github.com/cgwol/react_g_gui/releases).
@@ -52,6 +56,8 @@ Controller legends adapt to PlayStation, Xbox, or Nintendo layouts (or auto-dete
 4. Rename the tile and optionally set a custom image.
 
 Games are sorted by last played. You can rename, change the tile image, or delete entries from the tile menu (Triangle / Y / K).
+
+### Goob UI Games Page ![Games](/src/assets/GamesRM.png)
 
 ## How to Install Apps
 
@@ -255,6 +261,8 @@ del "%TEMP%\cursor_hide.lock"
 - Keep Couch Controller enabled in each profile. (Or other controller extension)
 - [SteamGridDB](https://www.steamgriddb.com/) is a great source for consistent, high-quality tile art for media apps.
 
+### Goob UI Apps Page ![Apps](/src/assets/AppsRM.png)
+
 ## Current Known Issues
 
 1. Production builds getting game through steam can be slow.
@@ -309,3 +317,5 @@ Recommended editor setup: VS Code with the Tauri and rust-analyzer extensions.
 ## License
 
 **MIT License**
+
+![Icon](/src/assets/256x256.png)
