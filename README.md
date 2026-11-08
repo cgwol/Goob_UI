@@ -11,7 +11,7 @@ Launch Steam games and local apps, navigate with a controller, and run fullscree
 Download the latest release from the [Releases page](https://github.com/cgwol/react_g_gui/releases).
 
 - **Windows**: Download and run the `.exe` installer
-- - **macOS**: Download the `.dmg`, open it, and drag the app to Applications
+- **macOS**: Download the `.dmg`, open it, and drag the app to Applications
 
 ## How to Use the App
 
