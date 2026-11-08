@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "g_gui",
+  "productName": "Goob UI",
   "version": "0.1.0",
-  "identifier": "com.christian.g-gui",
+  "identifier": "com.christian.goob-ui",
   "build": {
     "beforeDevCommand": "npm run dev:vite",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "g_gui",
+        "title": "Goob UI",
         "width": 1280,
         "height": 720,
         "fullscreen": false,

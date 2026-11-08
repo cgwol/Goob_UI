@@ -1,9 +1,17 @@
+/**
+ * Settings page for Goob UI.
+ * Lists every user-configurable option (startup, sensitivity, controller legend,
+ * theme, volume, window mode, resolution, and Clear Library).
+ * Most options open a dropdown; Clear Library opens a confirmation popup.
+ * Changes are applied immediately through the settings module and persisted to localStorage.
+ * Full keyboard and gamepad support with hold-to-repeat navigation.
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { invoke } from "@tauri-apps/api/core"; // CHANGE
+import { invoke } from "@tauri-apps/api/core";
 import { SideMenu } from "../components/SideMenu";
-import { Popup } from "../components/PromptMenu"; // CHANGE
+import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad, setPadChoice, type PadChoice } from "../input-mode";
 import { play } from "../sound";
 import {
@@ -33,7 +41,7 @@ const ITEMS = [
   "System volume",
   "Window mode",
   "Resolution",
-  "Clear Library", // CHANGE
+  "Clear Library",
 ] as const;
 const SENS: Sensitivity[] = ["Low", "Medium", "High"];
 const LEGENDS: PadChoice[] = ["auto detection", "playstation", "xbox", "nintendo", "generic"];
@@ -71,10 +79,11 @@ export function Settings() {
   const [dropFocus, setDropFocus] = useState(0);
   const dropFocusRef = useRef(dropFocus);
   dropFocusRef.current = dropFocus;
-  const [confirm, setConfirm] = useState(false); // CHANGE
+  const [confirm, setConfirm] = useState(false);
   const confirmRef = useRef(confirm);
   confirmRef.current = confirm;
 
+  // Check whether the app is currently set to start with Windows
   useEffect(() => {
     isEnabled().then(setStartup).catch((err) => console.error(err));
   }, []);
@@ -93,7 +102,7 @@ export function Settings() {
     }
   };
 
-  // CHANGE: wipe games, apps, and the tile image files
+  // Wipe the games and apps libraries (localStorage) and delete all tile image files on disk
   const clearLibrary = async () => {
     localStorage.removeItem("games");
     localStorage.removeItem("apps");
@@ -164,7 +173,7 @@ export function Settings() {
     if (item === "System volume") openDrop("volume");
     if (item === "Window mode") openDrop("window");
     if (item === "Resolution") openDrop("resolution");
-    if (item === "Clear Library") setConfirm(true); // CHANGE
+    if (item === "Clear Library") setConfirm(true);
   };
 
   const value = (label: (typeof ITEMS)[number]) => {
@@ -174,13 +183,13 @@ export function Settings() {
     if (label === "System volume") return volume;
     if (label === "Window mode") return windowMode;
     if (label === "Resolution") return resolution;
-    if (label === "Clear Library") return ""; // CHANGE
+    if (label === "Clear Library") return "";
     return legendLabel(padChoice);
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (confirmRef.current) return; // CHANGE
+      if (confirmRef.current) return;
       if (e.key === "Backspace") {
         e.preventDefault();
         if (dropRef.current) {
@@ -211,6 +220,7 @@ export function Settings() {
     };
     window.addEventListener("keydown", onKey);
 
+    // Gamepad polling with hold-to-repeat, paused while a confirmation popup is open
     let alive = true;
     let raf = 0;
     let prevCircle = false;
@@ -225,7 +235,6 @@ export function Settings() {
     const tick = () => {
       if (!alive) return;
       if (confirmRef.current) {
-        // CHANGE
         raf = requestAnimationFrame(tick);
         return;
       }
@@ -345,7 +354,7 @@ export function Settings() {
                 if (label === "System volume") openDrop("volume");
                 if (label === "Window mode") openDrop("window");
                 if (label === "Resolution") openDrop("resolution");
-                if (label === "Clear Library") setConfirm(true); // CHANGE
+                if (label === "Clear Library") setConfirm(true);
               }}
             >
               <span>{label}</span>
@@ -387,7 +396,6 @@ export function Settings() {
         ))}
       </div>
 
-      {/* CHANGE */}
       {confirm && (
         <Popup
           title="Clear library?"

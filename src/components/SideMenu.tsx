@@ -1,3 +1,11 @@
+/**
+ * Side menu overlay for Goob UI.
+ * Shown when the user presses Escape (keyboard) or Options/Start/PS (controller).
+ * Contains top-level items (Home, Settings, Close) and a nested power submenu
+ * (Minimize, Close app, Sleep, Power off). Supports both keyboard and gamepad
+ * navigation with hold-to-repeat on the stick. Controller button legends adapt
+ * to the detected or user-selected pad type.
+ */
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -24,6 +32,7 @@ export function SideMenu({
   focusedRef.current = focused;
   powerRef.current = powerOpen;
   const { mode, padKind } = useInputMode();
+  // Choose the button legend shown next to the menu title based on current input mode
   const menuIcon =
     mode === "keyboard"
       ? "Esc"
@@ -35,6 +44,7 @@ export function SideMenu({
 
   const items = powerOpen ? POWER : ITEMS;
 
+  // Execute the action for the currently highlighted menu item
   const choose = async (label: string) => {
     if (label === "Home") navigate("/");
     if (label === "Settings") navigate("/settings");
@@ -56,7 +66,7 @@ export function SideMenu({
       setPowerOpen(false);
       return;
     }
-    play("menu")
+    play("menu");
     setFocused(0);
 
     const onKey = (e: KeyboardEvent) => {
@@ -87,6 +97,7 @@ export function SideMenu({
     };
     window.addEventListener("keydown", onKey);
 
+    // Gamepad polling loop — runs only while the menu is open
     let alive = true;
     let raf = 0;
     let prevUp = false;
@@ -120,6 +131,7 @@ export function SideMenu({
         if (cross && !prevCross)
           choose((powerRef.current ? POWER : ITEMS)[focusedRef.current]);
 
+        // Arm so that the button that opened the menu does not immediately close it
         if (!circle && !ps && !start) armed = true;
         if (armed && (circle || ps || start) && !prevClose) {
           if (powerRef.current) {

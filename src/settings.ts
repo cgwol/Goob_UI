@@ -1,3 +1,10 @@
+/**
+ * Central settings store for Goob UI.
+ * Manages sensitivity (deadzone), theme, system volume, window mode, and resolution.
+ * All values are persisted to localStorage. Theme is applied by setting a class on <html>.
+ * Window mode and resolution are applied through Tauri window APIs, with special handling
+ * for "Windowed fullscreen" (borderless cover of the monitor when the chosen resolution fills it).
+ */
 import { useEffect, useState } from "react";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
@@ -50,6 +57,7 @@ function emit() {
   listeners.forEach((fn) => fn());
 }
 
+// Apply the current theme by setting a CSS class on the document element
 function applyTheme() {
   document.documentElement.className = `theme-${theme.toLowerCase()}`;
 }
@@ -62,6 +70,7 @@ export function getSensitivity() {
   return sensitivity;
 }
 
+// Map the sensitivity setting to a stick deadzone value used by navigation loops
 export function getDeadzone() {
   if (sensitivity === "High") return 0.35;
   if (sensitivity === "Low") return 0.75;
@@ -136,6 +145,7 @@ export function useVolume() {
   return volume;
 }
 
+// Convert the volume setting into a 0-1 gain multiplier for the audio system
 export function volumeLevel() {
   if (volume === "Off") return 0;
   if (volume === "Low") return 0.25;
@@ -175,6 +185,8 @@ export function useResolution() {
   return resolution;
 }
 
+// Decide the target pixel size for the chosen resolution, clamped to the monitor.
+// 'fills' is true when the chosen resolution essentially covers the whole monitor.
 function targetSize(monitor?: { size: { width: number; height: number } } | null) {
   const picked = RES_SIZE[resolution];
   if (!monitor) return { ...picked, fills: false };
@@ -184,6 +196,7 @@ function targetSize(monitor?: { size: { width: number; height: number } } | null
   return { width, height, fills };
 }
 
+// Borderless window that completely covers the current monitor (slightly oversized to hide edges)
 async function coverMonitor() {
   const win = getCurrentWindow();
   const monitor = await currentMonitor();
@@ -207,6 +220,7 @@ async function coverMonitor() {
   await win.setSize(size);
 }
 
+// Place a sized window (decorated or borderless) centered on the monitor
 async function placeSized(decorated: boolean) {
   const win = getCurrentWindow();
   const monitor = await currentMonitor();
@@ -234,6 +248,12 @@ async function placeSized(decorated: boolean) {
   await win.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
 }
 
+/**
+ * Apply the requested window mode using Tauri window APIs.
+ * Fullscreen uses the native fullscreen flag.
+ * Windowed fullscreen covers the monitor when the resolution fills it, otherwise centers a borderless window.
+ * Windowed is a normal decorated, resizable window of the chosen size.
+ */
 export async function applyWindowMode(mode: WindowMode) {
   const win = getCurrentWindow();
 
@@ -279,8 +299,11 @@ export function useWindowMode() {
   return windowMode;
 }
 
+// Apply theme immediately on module load
 applyTheme();
 
+// When the window regains focus in Windowed fullscreen mode and the resolution fills the monitor,
+// re-apply the cover so the window stays edge-to-edge after alt-tabbing.
 getCurrentWindow().onFocusChanged(({ payload: focused }) => {
   if (getWindowMode() !== "Windowed fullscreen") return;
   if (!focused) {

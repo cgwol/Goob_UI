@@ -1,3 +1,10 @@
+/**
+ * System sound effects for Goob UI.
+ * Uses the Web Audio API to generate short sine-wave tones for UI feedback
+ * (move focus, select, launch game/app, open menu). Volume is scaled by the
+ * user setting from settings.ts. A short mute window prevents sound spam
+ * during rapid navigation.
+ */
 import { useEffect } from "react";
 import { volumeLevel } from "./settings";
 import { getPad } from "./input-mode";
@@ -5,12 +12,17 @@ import { getPad } from "./input-mode";
 let ctx: AudioContext | null = null;
 let muteUntil = 0;
 
+// Lazily create and resume the AudioContext (required after user gesture on some browsers)
 function audio() {
     if (!ctx) ctx = new AudioContext();
     if (ctx.state === "suspended") void ctx.resume();
     return ctx;
 }
 
+/**
+ * Play a short UI sound. 'launch' and 'menu' are multi-note; others are single notes.
+ * Early-returns if volume is off or we are still inside the mute window.
+ */
 export function play(kind: "move" | "select" | "launch" | "menu") {
     const level = volumeLevel();
     if (!level) return;
@@ -26,6 +38,7 @@ export function play(kind: "move" | "select" | "launch" | "menu") {
         const start = ac.currentTime + i * 0.06;
         osc.type = "sine";
         osc.frequency.value = freq;
+        // Quick attack then exponential decay for a soft UI beep
         gain.gain.setValueAtTime(0.0001, start);
         gain.gain.exponentialRampToValueAtTime(0.14 * level, start + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
@@ -35,10 +48,15 @@ export function play(kind: "move" | "select" | "launch" | "menu") {
     });
 }
 
+/**
+ * Hook that watches for focus changes (via MutationObserver) and confirm presses
+ * (Enter, click on buttons/tiles, or Cross on the gamepad) to play the appropriate sounds.
+ */
 export function useSystemSounds() {
     useEffect(() => {
         let last = "";
 
+        // Build a simple identity string for the currently focused element
         const focusedId = () => {
             const el = document.querySelector(".focused");
             if (!el) return "";
@@ -69,6 +87,7 @@ export function useSystemSounds() {
         window.addEventListener("keydown", onKey);
         window.addEventListener("click", onClick);
 
+        // Poll the gamepad for Cross presses so controller confirms also play the select sound
         let alive = true;
         let raf = 0;
         let prevCross = false;

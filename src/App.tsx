@@ -1,7 +1,16 @@
+/**
+ * Root application component for Goob UI.
+ * Defines the top-level routes (Home, Games, Apps, Settings) and wires up
+ * global behaviors that should run for the lifetime of the app:
+ * - Cursor hiding based on input mode (keyboard/controller hide the OS cursor)
+ * - System sounds
+ * - Initial application of the saved window mode
+ *
+ * The Home screen is a simple horizontal tile row that navigates to the three main sections.
+ */
 import "./App.css";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-// import { Page } from "./pages/Page";
 import { SideMenu } from "./components/SideMenu";
 import { setInputMode, useInputMode, getPad } from "./input-mode";
 import { Games } from "./pages/Games";
@@ -12,6 +21,12 @@ import { useSystemSounds } from "./sound";
 
 const TILES = ["Games", "Apps", "Settings"];
 
+/**
+ * Hook that hides the mouse cursor whenever the user is driving the UI with
+ * keyboard or gamepad, and shows it again on real mouse movement.
+ * Uses a CSS class on <body> (see App.css). The OS-level cursor hide is handled
+ * by a companion Rust command in later versions of the app.
+ */
 function useCursorMode() {
   useEffect(() => {
     const hide = () => document.body.classList.add("cursor-hidden");
@@ -21,6 +36,8 @@ function useCursorMode() {
       setInputMode("keyboard");
       hide();
     };
+    // Only treat movement larger than a couple of pixels as intentional mouse use
+    // (avoids the synthetic mousemove events browsers fire on focus)
     const onMouse = (e: MouseEvent) => {
       if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) {
         setInputMode("mouse");
@@ -41,6 +58,7 @@ function useCursorMode() {
     window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("wheel", onWheel);
 
+    // Continuously poll the gamepad so that any stick or button activity switches to gamepad mode and hides the cursor
     let alive = true;
     let raf = 0;
     let prev = "";
@@ -55,7 +73,7 @@ function useCursorMode() {
         const pressed = pad.buttons.some((b) => b.pressed);
         const now = `${stick}:${pressed}`;
         if (now !== prev && (stick || pressed)) {
-          setInputMode("gamepad", pad.id); // CHANGE
+          setInputMode("gamepad", pad.id);
           hide();
         }
         prev = now;
@@ -75,6 +93,11 @@ function useCursorMode() {
   }, []);
 }
 
+/**
+ * Home screen: a horizontal row of three large tiles (Games, Apps, Settings).
+ * Navigation is driven by arrow keys or the left stick / D-pad, with hold-to-repeat.
+ * Enter / Cross activates the focused tile. Escape / Options opens the side menu.
+ */
 function Home() {
   const [focused, setFocused] = useState(0);
   const focusedRef = useRef(focused);
@@ -154,6 +177,7 @@ function Home() {
           const active =
             left && !right ? "left" : right && !left ? "right" : null;
 
+          // Hold-to-repeat logic for the stick / D-pad
           if (active !== holdDir) {
             holdDir = active;
             holdSince = now;
@@ -171,6 +195,7 @@ function Home() {
           if (cross && !prevCross) open();
         }
 
+        // Arm so the button that opened the menu does not immediately close it
         if (!circle && !ps && !start) armed = true;
         if (
           armed &&
@@ -233,6 +258,7 @@ function Home() {
 export default function App() {
   useCursorMode();
   useSystemSounds();
+  // Apply the saved window mode once on startup
   useEffect(() => {
     void applyWindowMode(getWindowMode());
   }, []);
