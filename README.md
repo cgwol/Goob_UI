@@ -1,72 +1,148 @@
-# Goob UI — Console-style PC Interface
+# Goob UI
+
+**Version 1.0.0**
 
 A modern, controller-first desktop interface built with **Tauri + React + TypeScript**.
 
-Inspired by the Wii home screen, but updated for PC. Launch Steam games, navigate with a PS5 DualSense controller, and run fullscreen like a console.
+Launch Steam games and local apps, navigate with a DualSense (or other) controller, and run fullscreen like a console.
 
-## Quick Start
+## How to Install Locally
 
-```bash
-# Install dependencies
-npm install
+### Prerequisites
+- [Node.js](https://nodejs.org/) (LTS recommended)
+- [Rust](https://www.rust-lang.org/tools/install) (required for Tauri)
+- Windows, macOS, or Linux
 
-# Start the app in development mode (Tauri + Vite)
-npm run dev
-```
+### Steps
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/cgwol/react_g_gui.git
+   cd react_g_gui
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run in development mode:
+   ```bash
+   npm run dev
+   ```
+4. (Optional) Build a production installer:
+   ```bash
+   npm run tauri build
+   ```
+   The packaged app will be in `src-tauri/target/release/bundle/`.
 
-First launch may take a minute while Rust compiles. Subsequent starts are much faster.
+## How to Use the App
 
-## Project Plan
+1. Launch Goob UI.
+2. Use a controller (recommended) or keyboard to navigate the home screen tiles:
+   - **Games** — your Steam and local game library
+   - **Apps** — local applications
+   - **Settings** — themes, window mode, sensitivity, etc.
+3. Select a tile to launch it.
+4. Press the Options / Start / Escape button (depending on input) to open the side menu.
+5. Use the back button (Circle / B / Backspace) to return to the previous screen.
 
-### Phase 1 — Console Shell
-- Fullscreen / borderless window
-- Hide mouse cursor by default
-- Basic Gamepad API support (PS5 controller navigation)
-- Simple focusable grid of placeholder tiles
+Controller legends adapt to PlayStation, Xbox, or Nintendo layouts (or auto-detect).
 
-### Phase 2 — Home Screen UI
-- Modern Wii-style grid of large tiles
-- Smooth focus animations (scale + glow)
-- Spatial / controller-friendly focus management
-- Optional channels or rows (Games, Apps, Settings)
+## How to Install Games
 
-### Phase 3 — Steam Integration
-- Rust command to launch games via `steam://run/APPID`
-- Scan local Steam library (or start with a curated list)
-- Display game art and names on tiles
+### Steam Games
+1. Go to the **Games** page.
+2. Select **Add game** → **Add Steam game**.
+3. Choose a game from your local Steam library.
+4. Some Steam Games don't have a game image, this can be set manually later.
 
-### Phase 4 — Polish & System Integration (Current Focus)
-- Auto-launch on boot (macOS login item / Windows startup)
-- Settings screen (controller sensitivity, theme, exit)
-- Sound effects and animations
-- Hide or minimize the app when a game launches
+**Recommended Steam settings for best results:**
+- Enable steam to launch when computer starts
+- In Steam → Settings → Controller, make sure your controller is detected 
+- Prefer games that support native controller input (or have good community controller configs).
+- For the cleanest experience with Goob UI’s window modes, run Steam and games in **borderless windowed** or **fullscreen** rather than exclusive fullscreen when the launcher needs to stay in control of focus/windowing.
+- Keep Steam running in the background so library scanning and launching work reliably.
+- In Steams Controller Advanced Settings, disable:
+1. Guide Button focuses Steam
+2. Turn off Controlles when exiting Big Picture Mode
+3. Enable Guide Button Chords for Controllers
 
-### Phase 4 Settings
-- Start with Windows
-- Controller Sensitivity in App
-- Controller Legends 
-- Theme
-- System Sounds
-- Full Screen Settings
-- Resolution Settings
-- Clear Library
-- Return Shortcut
+### Local / Non-Steam Games
+1. Go to the **Games** page.
+2. Select **Add game** → **Add other game**.
+3. Pick an `.exe` (or equivalent) file.
+4. Rename the tile and optionally set a custom image.
+
+Games are sorted by last played. You can rename, change the tile image, or delete entries from the tile menu (Triangle / Y / K).
+
+## How to Install Apps
+
+1. Go to the **Apps** page.
+2. Select **Add app**.
+3. Choose an `.exe` or `.bat` file.
+4. Rename the tile and optionally set a custom image.
+
+Apps work the same way as local games (launch, rename, set image, delete, last-played sort).
+
+## Best Settings for Media Apps
+
+*(Coming later — left blank for now.)*
+
+## Current Known Issues
+
+1. Production builds getting game through steam can be slow.
+2. Proper Windowed Mode and Windows Fullscreen support that doesnt rely on user settings resolution
+3. Cursor issues when tabbing back into app.  
+
+## Features to be added in future versions
+
+1. Local config file
+2. Sleep Screen
+3. In app/gmae home button support
+
+## How to Run the Dev Environment
+
+### Prerequisites
+- [Node.js](https://nodejs.org/) (LTS recommended)
+- [Rust](https://www.rust-lang.org/tools/install) (required for Tauri)
+- Windows, macOS, or Linux
+
+### Steps
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/cgwol/react_g_gui.git
+   cd react_g_gui
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run in development mode:
+   ```bash
+   npm run dev
+   ```
+4. (Optional) Build a production installer:
+   ```bash
+   npm run tauri build
+   ```
+   The packaged app will be in `src-tauri/target/release/bundle/`.
+
+- Vite serves the frontend at `http://localhost:1420`.
+- The first Rust compile can take a minute; later starts are much faster.
+
+Recommended editor setup: VS Code with the Tauri and rust-analyzer extensions.
 
 ## Tech Stack
 
 - **Frontend**: React 19 + TypeScript + Vite
 - **Desktop**: Tauri v2 (Rust backend)
-- **Input**: Browser Gamepad API (PS5 DualSense)
-- **Games**: Steam URI protocol (`steam://`)
+- **Input**: Browser Gamepad API (DualSense and others)
+- **Games**: Steam URI protocol + local executables
 
-## Development
+## License
 
-```bash
-npm run dev          # Full Tauri + Vite dev server
-npm run build        # Production build
-npm run tauri build  # Package the app
-```
+**Recommended: MIT License**
 
-## Recommended IDE Setup
+MIT is simple, permissive, and the most common choice for personal/open-source projects like this. It lets others use, modify, and distribute the code with minimal restrictions (just keep the copyright notice).
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+If you want stronger copyleft (derivatives must stay open), consider **GPL-3.0**. If you prefer something more lawyer-friendly with explicit patent grants, **Apache-2.0** is also popular.
+
+Add a `LICENSE` file with the full text of whichever you choose, and put a short notice at the bottom of this README.
