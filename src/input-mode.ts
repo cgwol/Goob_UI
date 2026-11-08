@@ -1,3 +1,9 @@
+/**
+ * Tracks the active input mode (mouse, keyboard, or gamepad) and detected controller type for Goob UI.
+ * Exports utilities to query the current mode, detect PlayStation/Xbox/Nintendo pads, and persist
+ * the user's preferred controller legend (auto-detect or forced) in localStorage.
+ * Filters out Steam virtual controllers so the real hardware pad is preferred.
+ */
 import { useEffect, useState } from "react";
 
 export type InputMode = "mouse" | "keyboard" | "gamepad";
@@ -12,15 +18,20 @@ let padKind: PadKind = "generic";
 let padChoice: PadChoice = loadPad();
 const listeners = new Set<() => void>();
 
+// Load the saved controller legend preference, defaulting to auto detection
 function loadPad(): PadChoice {
   const saved = localStorage.getItem(PAD_KEY);
   return PAD_ORDER.includes(saved as PadChoice) ? (saved as PadChoice) : "auto detection";
 }
 
+// Notify all React hooks that the mode or legend has changed
 function emit() {
   listeners.forEach((fn) => fn());
 }
 
+/**
+ * Update the global input mode. When switching to gamepad, optionally detect the pad type from its id.
+ */
 export function setInputMode(next: InputMode, id?: string) {
   if (next === "gamepad" && id) padKind = detectPad(id);
   if (mode === next && (next !== "gamepad" || !id)) return;
@@ -28,6 +39,9 @@ export function setInputMode(next: InputMode, id?: string) {
   emit();
 }
 
+/**
+ * Classify a Gamepad.id string into playstation, xbox, nintendo, or generic.
+ */
 export function detectPad(id: string): PadKind {
   const name = id.toLowerCase();
   if (name.includes("dualsense") || name.includes("dualshock") || name.includes("playstation") || name.includes("sony")) {
@@ -42,6 +56,9 @@ export function getPadChoice() {
   return padChoice;
 }
 
+/**
+ * Cycle to the next controller legend option and persist it.
+ */
 export function cyclePadChoice() {
   padChoice = PAD_ORDER[(PAD_ORDER.indexOf(padChoice) + 1) % PAD_ORDER.length];
   localStorage.setItem(PAD_KEY, padChoice);
@@ -49,10 +66,14 @@ export function cyclePadChoice() {
   return padChoice;
 }
 
+// Return the pad kind that should be shown in UI legends (user override or auto-detected)
 function shownPad(): PadKind {
   return padChoice === "auto detection" ? padKind : padChoice;
 }
 
+/**
+ * React hook that re-renders the component whenever the input mode or pad choice changes.
+ */
 export function useInputMode() {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -65,6 +86,10 @@ export function useInputMode() {
   return { mode, padKind: shownPad(), padChoice };
 }
 
+/**
+ * Return the preferred connected Gamepad, or null if the window is unfocused.
+ * Prefers a non-Steam/virtual pad when multiple are present.
+ */
 export function getPad(): Gamepad | null {
   if (!document.hasFocus()) return null;
   const pads = Array.from(navigator.getGamepads?.() ?? []).filter(

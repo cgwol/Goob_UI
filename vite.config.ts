@@ -1,3 +1,8 @@
+/**
+ * Vite configuration tailored for the Goob UI Tauri application.
+ * Enables the React plugin and configures the dev server to match Tauri expectations
+ * (fixed port 1420, strict port, optional HMR host, and ignoring the Rust src-tauri directory).
+ */
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 // @ts-expect-error type error without @types/node package
