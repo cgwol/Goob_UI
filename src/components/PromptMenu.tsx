@@ -1,3 +1,10 @@
+/**
+ * Reusable modal popup component used throughout Goob UI.
+ * Displays a title, optional body content, and a vertical list of action buttons.
+ * Supports keyboard (arrow keys + Enter/Escape) and gamepad (stick + Cross/Circle) navigation.
+ * Includes a short ignore window after opening so that the button that triggered the popup
+ * does not immediately activate an action.
+ */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { getPad } from "../input-mode";
 import { getDeadzone } from "../settings";
@@ -25,13 +32,14 @@ export function Popup({
   const onCloseRef = useRef(onClose);
   actionsRef.current = actions;
   onCloseRef.current = onClose;
-  const ignore = useRef(true); // CHANGE
+  const ignore = useRef(true); // Prevent accidental activation right after the popup opens
 
   useEffect(() => {
+    // Blur any focused input so keyboard events are not swallowed by a form field
     (document.activeElement as HTMLElement | null)?.blur?.();
     const arm = setTimeout(() => {
       ignore.current = false;
-    }, 400); // CHANGE
+    }, 400);
 
     const onKey = (e: KeyboardEvent) => {
       const inField = (e.target as HTMLElement).tagName === "INPUT";
@@ -44,6 +52,7 @@ export function Popup({
     };
     window.addEventListener("keydown", onKey);
 
+    // Gamepad navigation loop with hold-to-repeat on the stick
     let alive = true;
     let raf = 0;
     let prevCross = false;
@@ -107,7 +116,7 @@ export function Popup({
     <div
       className="popup-backdrop"
       onClick={() => {
-        if (!ignore.current) onCloseRef.current(); // CHANGE
+        if (!ignore.current) onCloseRef.current();
       }}
     >
       <section className="popup" onClick={(e) => e.stopPropagation()} role="dialog">
@@ -122,7 +131,7 @@ export function Popup({
               onMouseEnter={() => setFocused(i)}
               onClick={(e) => {
                 e.stopPropagation();
-                if (ignore.current) return; // CHANGE
+                if (ignore.current) return;
                 action.onSelect();
               }}
             >

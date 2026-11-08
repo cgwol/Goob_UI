@@ -1,3 +1,9 @@
+/**
+ * Shared page chrome used by the Games, Apps, and Settings screens.
+ * Renders the top bar (title + clock), a Back button, and the SideMenu.
+ * Handles the global "go back" action (Backspace or Circle) and "open menu" action
+ * (Escape or Options/Start/PS button).
+ */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "../components/SideMenu";
@@ -10,6 +16,7 @@ export function Page({ title }: { title: string }) {
   menuOpenRef.current = menuOpen;
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const { mode, padKind } = useInputMode();
+  // Adaptive button legends for the Back control
   const backIcon =
     mode === "keyboard"
       ? "⌫"
@@ -37,6 +44,7 @@ export function Page({ title }: { title: string }) {
     };
     window.addEventListener("keydown", onKey);
 
+    // Poll gamepad for Circle (back) and Options/Start (menu)
     let alive = true;
     let raf = 0;
     let prevCircle = false;
