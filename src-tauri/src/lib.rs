@@ -84,7 +84,6 @@ fn system_action(action: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-#[tauri::command]
 fn launch_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     // Push Goob out of the way so the launched app can come forward
     if let Some(win) = app.get_webview_window("main") {
