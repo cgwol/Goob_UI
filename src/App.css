@@ -298,6 +298,21 @@ body,
   background: transparent;
   color: var(--fg);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.menu-more {
+  margin-left: auto;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 0.85rem;
+  font-weight: 700;
+  opacity: 0.9;
 }
 
 .menu-item.focused {
@@ -446,6 +461,42 @@ body,
 }
 
 .dropdown-item.focused {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.ctx-menu {
+  position: fixed;
+  left: 290px;
+  min-width: 140px;
+  background: var(--popup);
+  border-radius: 12px;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  z-index: 30;
+}
+
+.ctx-item {
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  text-align: left;
+  background: transparent;
+  color: var(--fg);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.ctx-item:hover,
+.ctx-item:focus-visible {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.ctx-item.focused {
   background: var(--surface-2);
   box-shadow: inset 0 0 0 2px var(--accent);
 }

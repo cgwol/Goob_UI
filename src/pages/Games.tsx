@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-dialog";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { addRunning, processNameFromPath } from "../running-apps";
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
@@ -127,9 +128,22 @@ export function Games() {
     setFocused(0);
 
     if (game.steamId) {
+      addRunning({
+        id: game.id,
+        name: game.name,
+        path: game.path || `steam:${game.steamId}`,
+        processName: game.name.replace(/[^a-zA-Z0-9]/g, "") + ".exe",
+        steamId: game.steamId,
+      });
       invoke("launch_steam", { appId: game.steamId }).catch((err) => console.error(err));
       return;
     }
+    addRunning({
+      id: game.id,
+      name: game.name,
+      path: game.path,
+      processName: processNameFromPath(game.path),
+    });
     invoke("launch_path", { path: game.path }).catch((err) => console.error(err));
   };
 
