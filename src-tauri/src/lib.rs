@@ -1,6 +1,20 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::Manager;
 
+#[derive(serde::Serialize)]
+struct OpenWindow {
+    title: String,
+    process_name: String,
+    icon: Option<String>,
+    command_line: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+struct SteamGame {
+    app_id: String,
+    name: String,
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -71,10 +85,137 @@ fn launch_path(path: String) -> Result<(), String> {
     Ok(())
 }
 
-#[derive(serde::Serialize)]
-struct SteamGame {
-    app_id: String,
-    name: String,
+/// Check if a process with the given name is currently running (Windows-focused).
+#[tauri::command]
+fn is_process_running(name: String) -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let output = std::process::Command::new("tasklist")
+            .args(["/FI", &format!("IMAGENAME eq {}", name), "/NH"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let text = String::from_utf8_lossy(&output.stdout).to_lowercase();
+        Ok(text.contains(&name.to_lowercase()))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = name;
+        Ok(false)
+    }
+}
+
+/// Bring an existing window to the foreground by process name or title (Windows).
+#[tauri::command]
+fn focus_window(query: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let script = format!(
+            r#"
+            Add-Type -AssemblyName Microsoft.VisualBasic
+            $null = [Microsoft.VisualBasic.Interaction]::AppActivate('{}')
+            "#,
+            query.replace('\'', "''")
+        );
+        std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", &script])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = query;
+        Err("focus_window only supported on Windows".into())
+    }
+}
+
+/// List currently open top-level windows that appear on the taskbar (Windows).
+#[tauri::command]
+fn list_open_windows() -> Result<Vec<OpenWindow>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let script = r#"
+Add-Type -AssemblyName System.Windows.Forms
+$windows = Get-Process | Where-Object { $_.MainWindowTitle -and $_.MainWindowHandle -ne 0 }
+$result = @()
+foreach ($w in $windows) {
+    $icon = $null
+    if ($w.Path -and (Test-Path $w.Path)) {
+        try {
+            $extracted = [System.Drawing.Icon]::ExtractAssociatedIcon($w.Path)
+            if ($extracted) {
+                $bmp = $extracted.ToBitmap()
+                $ms = New-Object System.IO.MemoryStream
+                $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+                $bytes = $ms.ToArray()
+                $icon = [Convert]::ToBase64String($bytes)
+                $ms.Dispose()
+                $bmp.Dispose()
+                $extracted.Dispose()
+            }
+        } catch {}
+    }
+    $cmd = $null
+    try { $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId=$($w.Id)").CommandLine } catch {}
+    $result += [PSCustomObject]@{
+        title = $w.MainWindowTitle
+        process_name = $w.ProcessName
+        icon = $icon
+        command_line = $cmd
+    }
+}
+$result | ConvertTo-Json -Compress
+"#;
+        let output = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", script])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let text = String::from_utf8_lossy(&output.stdout);
+        if text.trim().is_empty() {
+            return Ok(vec![]);
+        }
+        let parsed: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        let arr = match parsed {
+            serde_json::Value::Array(a) => a,
+            serde_json::Value::Object(_) => vec![parsed],
+            _ => vec![],
+        };
+        let mut windows = Vec::new();
+        for item in arr {
+            let title = item
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if title.is_empty() {
+                continue;
+            }
+            let process_name = item
+                .get("process_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let icon = item
+                .get("icon")
+                .and_then(|v| v.as_str())
+                .map(|s| format!("data:image/png;base64,{}", s));
+            let command_line = item
+                .get("command_line")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            windows.push(OpenWindow {
+                title,
+                process_name,
+                icon,
+                command_line,
+            });
+        }
+        Ok(windows)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(vec![])
+    }
 }
 
 fn steam_root() -> Option<std::path::PathBuf> {
@@ -257,18 +398,19 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-                    greet,
-                    system_action,
-                    launch_path,
-                    list_steam_games,
-                    launch_steam,
-                    save_tile_image,
-                    save_data_url,
-                    delete_tile_image,
-                    save_data_url,
-                    delete_tile_image,
-                    clear_tiles
-                ])
+            greet,
+            system_action,
+            launch_path,
+            list_steam_games,
+            launch_steam,
+            save_tile_image,
+            save_data_url,
+            delete_tile_image,
+            clear_tiles,
+            is_process_running,
+            focus_window,
+            list_open_windows
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -15,6 +15,7 @@ import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
 import { getDeadzone } from "../settings";
 import { play } from "../sound";
+import { addRunning, processNameFromPath } from "../running-apps";
 
 type AppItem = { id: string; name: string; path: string; image?: string; lastPlayed?: number };
 
@@ -110,6 +111,14 @@ export function Apps() {
   }, [focused]);
 
   const launch = (app: AppItem) => {
+    addRunning({
+      id: app.id,
+      name: app.name,
+      path: app.path,
+      processName: processNameFromPath(app.path),
+      image: app.image,
+    })
+
     play("launch");
     const now = Date.now();
     setApps((list) => {
@@ -198,7 +207,7 @@ export function Apps() {
   const deleteTile = () => {
     if (!menuFor) return;
     const app = appsRef.current.find((a) => a.id === menuFor);
-    if (app?.image) invoke("delete_tile_image", { path: app.image }).catch(() => {});
+    if (app?.image) invoke("delete_tile_image", { path: app.image }).catch(() => { });
     setApps((list) => list.filter((a) => a.id !== menuFor));
     setMenuFor(null);
     setFocused(0);
