@@ -83,12 +83,40 @@ fn system_action(action: String) -> Result<(), String> {
     }
 }
 
+/// Send the main Goob window behind other windows without minimizing it.
+/// The launched app comes forward, and Goob stays open so closing the other
+/// app (or Alt-Tab) returns you to it.
+fn send_goob_to_back(app: &tauri::AppHandle) {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(win) = app.get_webview_window("main") {
+            let _ = win.set_always_on_top(false);
+            let script = r#"
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class GoobWin {
+  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+}
+"@
+$hwnd = (Get-Process | Where-Object { $_.ProcessName -like '*goob*' -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1).MainWindowHandle
+if ($hwnd) { [GoobWin]::SetWindowPos([IntPtr]$hwnd, [IntPtr]1, 0, 0, 0, 0, 0x0013) }
+"#;
+            let _ = hidden_cmd("powershell")
+                .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
+                .spawn();
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+    }
+}
+
 #[tauri::command]
 fn launch_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     // Push Goob out of the way so the launched app can come forward
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.minimize();
-    }
+    send_goob_to_back(&app);
 
     let file = std::path::Path::new(&path);
     let is_bat = file
@@ -148,10 +176,8 @@ fn is_process_running(name: String) -> Result<bool, String> {
 fn focus_window(app: tauri::AppHandle, query: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        // Move Goob out of the way first
-        if let Some(win) = app.get_webview_window("main") {
-            let _ = win.minimize();
-        }
+        // Move Goob out of the way first (without minimizing)
+        send_goob_to_back(&app);
         let script = format!(
             r#"
             Add-Type -AssemblyName Microsoft.VisualBasic
@@ -359,9 +385,7 @@ fn list_steam_games() -> Result<Vec<SteamGame>, String> {
 
 #[tauri::command]
 fn launch_steam(app: tauri::AppHandle, app_id: String) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.minimize();
-    }
+    send_goob_to_back(&app);
     let steam = steam_root().ok_or("Steam install not found")?;
     std::process::Command::new(steam.join("steam.exe"))
         .arg("-applaunch")
