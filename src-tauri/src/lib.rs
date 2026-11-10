@@ -7,6 +7,7 @@ struct OpenWindow {
     process_name: String,
     icon: Option<String>,
     command_line: Option<String>,
+    pid: u32,
 }
 
 #[derive(serde::Serialize)]
@@ -129,6 +130,24 @@ fn focus_window(query: String) -> Result<(), String> {
     }
 }
 
+/// Close a window/process by PID (Windows).
+#[tauri::command]
+fn close_window(pid: u32) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/F"])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = pid;
+        Err("close_window only supported on Windows".into())
+    }
+}
+
 /// List currently open top-level windows that appear on the taskbar (Windows).
 #[tauri::command]
 fn list_open_windows() -> Result<Vec<OpenWindow>, String> {
@@ -162,6 +181,7 @@ foreach ($w in $windows) {
         process_name = $w.ProcessName
         icon = $icon
         command_line = $cmd
+        pid = $w.Id
     }
 }
 $result | ConvertTo-Json -Compress
@@ -203,11 +223,13 @@ $result | ConvertTo-Json -Compress
                 .get("command_line")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
+            let pid = item.get("pid").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
             windows.push(OpenWindow {
                 title,
                 process_name,
                 icon,
                 command_line,
+                pid,
             });
         }
         Ok(windows)
@@ -409,6 +431,7 @@ pub fn run() {
             clear_tiles,
             is_process_running,
             focus_window,
+            close_window,
             list_open_windows
         ])
         .run(tauri::generate_context!())

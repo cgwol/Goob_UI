@@ -4,6 +4,7 @@
  * Contains top-level items (Home, Settings, Close) and a nested power submenu.
  * Also lists currently open windows (live apps on the taskbar) with their icons.
  * Selecting an open window focuses it. Closed windows disappear automatically.
+ * K / Triangle / Y or the ... button opens a popup to Open or Close the app.
  * Supports both keyboard and gamepad navigation.
  */
 import { useEffect, useRef, useState } from "react";
@@ -14,6 +15,7 @@ import { useInputMode, getPad } from "../input-mode";
 import { getDeadzone } from "../settings";
 import { play } from "../sound";
 import { getRunning, type RunningItem } from "../running-apps";
+import { Popup } from "./PromptMenu";
 
 const POWER = ["Minimize", "Close app", "Sleep", "Power off"] as const;
 
@@ -22,6 +24,7 @@ type OpenWindow = {
   process_name: string;
   icon?: string | null;
   command_line?: string | null;
+  pid?: number;
 };
 
 /** Match a Chrome window to a .bat app we launched from Goob, if possible. */
@@ -91,12 +94,15 @@ export function SideMenu({
   const [focused, setFocused] = useState(0);
   const [powerOpen, setPowerOpen] = useState(false);
   const [windows, setWindows] = useState<OpenWindow[]>([]);
+  const [ctxFor, setCtxFor] = useState<OpenWindow | null>(null);
   const focusedRef = useRef(focused);
   const powerRef = useRef(powerOpen);
   const windowsRef = useRef(windows);
+  const ctxRef = useRef(ctxFor);
   focusedRef.current = focused;
   powerRef.current = powerOpen;
   windowsRef.current = windows;
+  ctxRef.current = ctxFor;
   const { mode, padKind } = useInputMode();
 
   const menuIcon =
@@ -107,6 +113,20 @@ export function SideMenu({
         : mode === "gamepad"
           ? "☰"
           : "";
+
+  const moreIcon =
+    mode === "keyboard"
+      ? "K"
+      : mode === "gamepad" && padKind === "playstation"
+        ? "△"
+        : mode === "gamepad"
+          ? "Y"
+          : "...";
+
+  const openCtx = (w: OpenWindow) => {
+    play("menu");
+    setCtxFor(w);
+  };
 
   const bats = getRunning().filter((r) => r.path.toLowerCase().endsWith(".bat"));
   const live = windows.filter((w) => !isGoob(w));
@@ -178,6 +198,7 @@ export function SideMenu({
     setFocused(0);
 
     const onKey = (e: KeyboardEvent) => {
+      if (ctxRef.current) return;
       const list = powerRef.current
         ? POWER.map((label) => ({ kind: "base" as const, label }))
         : [
@@ -210,6 +231,10 @@ export function SideMenu({
         setFocused((f) => (f + 1) % n);
       }
       if (e.key === "Enter") choose(list[focusedRef.current]);
+      if ((e.key === "k" || e.key === "K")) {
+        const entry = list[focusedRef.current];
+        if (entry?.kind === "window" && entry.window) openCtx(entry.window);
+      }
     };
     window.addEventListener("keydown", onKey);
 
@@ -218,11 +243,16 @@ export function SideMenu({
     let prevUp = false;
     let prevDown = false;
     let prevCross = false;
+    let prevTriangle = false;
     let prevClose = false;
     let armed = false;
 
     const tick = () => {
       if (!alive) return;
+      if (ctxRef.current) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       const pad = getPad();
       if (pad) {
         const zone = getDeadzone();
@@ -230,6 +260,7 @@ export function SideMenu({
         const up = y < -zone || !!pad.buttons[12]?.pressed;
         const down = y > zone || !!pad.buttons[13]?.pressed;
         const cross = !!pad.buttons[0]?.pressed;
+        const triangle = !!pad.buttons[3]?.pressed;
         const circle = !!pad.buttons[1]?.pressed;
         const ps = !!pad.buttons[16]?.pressed;
         const start = !!pad.buttons[9]?.pressed;
@@ -258,6 +289,10 @@ export function SideMenu({
           setFocused((f) => (f + 1) % n);
         }
         if (cross && !prevCross) choose(list[focusedRef.current]);
+        if (triangle && !prevTriangle) {
+          const entry = list[focusedRef.current];
+          if (entry?.kind === "window" && entry.window) openCtx(entry.window);
+        }
 
         if (!circle && !ps && !start) armed = true;
         if (armed && (circle || ps || start) && !prevClose) {
@@ -272,6 +307,7 @@ export function SideMenu({
         prevUp = up;
         prevDown = down;
         prevCross = cross;
+        prevTriangle = triangle;
         prevClose = circle || ps || start;
       }
       raf = requestAnimationFrame(tick);
@@ -332,9 +368,48 @@ export function SideMenu({
               />
             )}
             {entry.label}
+            {entry.kind === "window" && (
+              <span
+                className="menu-more"
+                style={{ marginLeft: "auto", paddingLeft: 12, opacity: 0.8 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (entry.window) openCtx(entry.window);
+                }}
+              >
+                {moreIcon}
+              </span>
+            )}
           </button>
         ))}
       </aside>
+      {ctxFor && (
+        <Popup
+          title={displayName(ctxFor, getRunning().filter((r) => r.path.toLowerCase().endsWith(".bat")))}
+          onClose={() => setCtxFor(null)}
+          actions={[
+            {
+              label: "Open",
+              onSelect: () => {
+                const q = ctxFor.title || ctxFor.process_name;
+                invoke("focus_window", { query: q }).catch(console.error);
+                setCtxFor(null);
+                onClose();
+              },
+            },
+            {
+              label: "Close",
+              onSelect: () => {
+                if (ctxFor.pid) {
+                  invoke("close_window", { pid: ctxFor.pid }).catch(console.error);
+                }
+                setCtxFor(null);
+              },
+            },
+            { label: "Cancel", onSelect: () => setCtxFor(null) },
+          ]}
+        />
+      )}
     </div>
   );
 }
