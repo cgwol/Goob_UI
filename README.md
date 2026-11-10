@@ -1,6 +1,6 @@
 # ![icon](/src/assets/32x32.png) Goob UI 
 
-**Version 1.0.0**
+**Version 1.1.0**
 
 A modern, controller-first desktop interface built with **Tauri + React + TypeScript**.
 
@@ -79,7 +79,7 @@ Apps work the same way as local games (launch, rename, set image, delete, last-p
 
 ## Best Settings for Media Apps
 
-Media apps and streaming sites (YouTube, Netflix, Disney+, etc.) work best as dedicated Chrome “app” launches with controller support and automatic cursor hiding.
+Media apps and streaming sites (YouTube, Netflix, Disney+, etc.) work best as dedicated Chrome “app” launches with controller support and (optional) automatic cursor hiding.
 
 ### Recommended Setup
 
@@ -93,7 +93,7 @@ Media apps and streaming sites (YouTube, Netflix, Disney+, etc.) work best as de
 3. Using a Steam Desktop Non-Game Controller Layout
      - In steam controller settings, enter the advanced settings
      - For best results, in external Gamepad Settings, disable all settings except your controller Support
-     - In the Non-Gmae Controller Layout, press edit. Enable Steam Input translation
+     - In the Non-Game Controller Layout, press edit. Enable Steam Input translation
      - Use default layout or create a custom layout for your controller
 
 ### Option 2 for browser controller support
