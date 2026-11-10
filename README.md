@@ -17,6 +17,15 @@ Download the latest release from the [Releases page](https://github.com/cgwol/re
 - **Windows**: Download and run the `.exe` installer
 - **macOS**: Download the `.dmg`, open it, and drag the app to Applications
 
+## Steam Setup to avoid double input in Goob UI
+
+- In the Steam library add Goob UI as a Non-Steam Game
+- Once Goob UI is added to the steam library, go to manage, then to properties
+- In the controller tab, in Override for Goob UI, Disable Steam Input
+- Restart Goob UI
+
+![GoobSteam](/src/assets/SteamRM.png)
+
 ## How to Use the App
 
 1. Launch Goob UI.
@@ -76,22 +85,34 @@ Media apps and streaming sites (YouTube, Netflix, Disney+, etc.) work best as de
 
 1. Create a dedicated Chrome profile for each service (keeps logins and settings separate).
 2. Use a ```.bat``` launcher that: 
-      - Starts Chrome in app/fullscreen mode with that profile
-      - Launches an AutoHotkey script to hide the mouse cursor (optional)
-      - Cleans up when the window closes
+     - Starts Chrome in app/fullscreen mode with that profile
+     - Launches an AutoHotkey script to hide the mouse cursor (optional)
+     - Cleans up when the window closes
+
+### Option 1 for browser/app controller supprot
+3. Using a Steam Desktop Non-Game Controller Layout
+     - In steam controller settings, enter the advanced settings
+     - For best results, in external Gamepad Settings, disable all settings except your controller Support
+     - In the Non-Gmae Controller Layout, press edit. Enable Steam Input translation
+     - Use default layout or create a custom layout for your controller
+
+### Option 2 for browser controller support
+
 3. Install the [Couch Controller Chrome extension](https://chromewebstore.google.com/detail/odlaphcdndfenefjhmoneehgjbcpkhof?utm_source=item-share-cb) in that profile so you can navigate the site with a gamepad. (Other Controller extenstions should work)
 
 ### First-Time Setup (per media app)
 
-1. Run a setup batch file that opens the correct Chrome profile and the Couch Controller store page:
+1. Run a setup batch file that opens the correct Chrome profile and login into the media site:
 ```
 @echo off
 set CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"
 if not exist %CHROME% set CHROME="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
 
+::Edit the name of the folder to be created per media site
 set PROFILE=%LOCALAPPDATA%\GoobMedia\Youtube
 if not exist "%PROFILE%" mkdir "%PROFILE%"
 
+:: Delete link to couch controller if using option 1
 %CHROME% --user-data-dir="%PROFILE%" --no-first-run --disable-session-crashed-bubble --new-window https://chromewebstore.google.com/detail/couch-controller/odlaphcdndfenefjhmoneehgjbcpkhof
 ```
 2. Sign in to the streaming service and install/enable Couch Controller.
@@ -106,9 +127,11 @@ if not exist "%PROFILE%" mkdir "%PROFILE%"
 set CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"
 if not exist %CHROME% set CHROME="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
 
+:: Replace Youtube with desired Media Site
 set PROFILE=%LOCALAPPDATA%\GoobMedia\Youtube
 if not exist "%PROFILE%" mkdir "%PROFILE%"
 
+:: Replace Youtube with desired Media Site
 %CHROME% --user-data-dir="%PROFILE%" --app=https://www.youtube.com --start-fullscreen --no-first-run --disable-session-crashed-bubble --new-window
 ```
 2. Go to the Apps page.
@@ -248,9 +271,11 @@ start "" "CursorHide.ahk"
 set CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"
 if not exist %CHROME% set CHROME="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
 
+:: Replace Youtube with desired Media Site
 set PROFILE=%LOCALAPPDATA%\SteamMedia\Youtube
 if not exist "%PROFILE%" mkdir "%PROFILE%"
 
+:: Replace Youtube with desired Media Site
 %CHROME% --user-data-dir="%PROFILE%" --app=https://www.youtube.com --start-fullscreen --no-first-run --disable-session-crashed-bubble --new-window
 
 del "%TEMP%\cursor_hide.lock"
