@@ -84,7 +84,13 @@ fn system_action(action: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn launch_path(path: String) -> Result<(), String> {
+#[tauri::command]
+fn launch_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    // Push Goob out of the way so the launched app can come forward
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.minimize();
+    }
+
     let file = std::path::Path::new(&path);
     let is_bat = file
         .extension()
@@ -102,6 +108,20 @@ fn launch_path(path: String) -> Result<(), String> {
         cmd.current_dir(dir);
     }
     cmd.spawn().map_err(|e| e.to_string())?;
+
+    // Try to focus the launched app after a short delay
+    let name = file
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_string();
+    if !name.is_empty() {
+        let app2 = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(600));
+            let _ = focus_window(app2, name);
+        });
+    }
     Ok(())
 }
 
@@ -126,9 +146,13 @@ fn is_process_running(name: String) -> Result<bool, String> {
 
 /// Bring an existing window to the foreground by process name or title (Windows).
 #[tauri::command]
-fn focus_window(query: String) -> Result<(), String> {
+fn focus_window(app: tauri::AppHandle, query: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
+        // Move Goob out of the way first
+        if let Some(win) = app.get_webview_window("main") {
+            let _ = win.minimize();
+        }
         let script = format!(
             r#"
             Add-Type -AssemblyName Microsoft.VisualBasic
@@ -144,7 +168,7 @@ fn focus_window(query: String) -> Result<(), String> {
     }
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = query;
+        let _ = (app, query);
         Err("focus_window only supported on Windows".into())
     }
 }
@@ -173,12 +197,33 @@ fn list_open_windows() -> Result<Vec<OpenWindow>, String> {
     #[cfg(target_os = "windows")]
     {
         let script = r#"
+Add-Type -AssemblyName System.Windows.Forms
 $windows = Get-Process | Where-Object { $_.MainWindowTitle -and $_.MainWindowHandle -ne 0 }
 $result = @()
 foreach ($w in $windows) {
+    $icon = $null
+    if ($w.Path -and (Test-Path $w.Path)) {
+        try {
+            $extracted = [System.Drawing.Icon]::ExtractAssociatedIcon($w.Path)
+            if ($extracted) {
+                $bmp = $extracted.ToBitmap()
+                $ms = New-Object System.IO.MemoryStream
+                $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+                $bytes = $ms.ToArray()
+                $icon = [Convert]::ToBase64String($bytes)
+                $ms.Dispose()
+                $bmp.Dispose()
+                $extracted.Dispose()
+            }
+        } catch {}
+    }
+    $cmd = $null
+    try { $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId=$($w.Id)").CommandLine } catch {}
     $result += [PSCustomObject]@{
         title = $w.MainWindowTitle
         process_name = $w.ProcessName
+        icon = $icon
+        command_line = $cmd
         pid = $w.Id
     }
 }
@@ -314,7 +359,10 @@ fn list_steam_games() -> Result<Vec<SteamGame>, String> {
 }
 
 #[tauri::command]
-fn launch_steam(app_id: String) -> Result<(), String> {
+fn launch_steam(app: tauri::AppHandle, app_id: String) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.minimize();
+    }
     let steam = steam_root().ok_or("Steam install not found")?;
     std::process::Command::new(steam.join("steam.exe"))
         .arg("-applaunch")
