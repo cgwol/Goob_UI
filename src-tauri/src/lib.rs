@@ -1,6 +1,25 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::Manager;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+/// Hide the console window when spawning child processes on Windows (prevents flash in release builds).
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[cfg(target_os = "windows")]
+fn hidden_cmd(program: &str) -> std::process::Command {
+    let mut cmd = std::process::Command::new(program);
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}
+
+#[cfg(not(target_os = "windows"))]
+fn hidden_cmd(program: &str) -> std::process::Command {
+    std::process::Command::new(program)
+}
+
 #[derive(serde::Serialize)]
 struct OpenWindow {
     title: String,
@@ -73,7 +92,7 @@ fn launch_path(path: String) -> Result<(), String> {
         .map(|e| e.eq_ignore_ascii_case("bat"))
         .unwrap_or(false);
     let mut cmd = if is_bat {
-        let mut c = std::process::Command::new("cmd");
+        let mut c = hidden_cmd("cmd");
         c.args(["/C", &path]);
         c
     } else {
@@ -91,7 +110,7 @@ fn launch_path(path: String) -> Result<(), String> {
 fn is_process_running(name: String) -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
-        let output = std::process::Command::new("tasklist")
+        let output = hidden_cmd("tasklist")
             .args(["/FI", &format!("IMAGENAME eq {}", name), "/NH"])
             .output()
             .map_err(|e| e.to_string())?;
@@ -117,8 +136,8 @@ fn focus_window(query: String) -> Result<(), String> {
             "#,
             query.replace('\'', "''")
         );
-        std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", &script])
+        hidden_cmd("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &script])
             .spawn()
             .map_err(|e| e.to_string())?;
         Ok(())
@@ -135,7 +154,7 @@ fn focus_window(query: String) -> Result<(), String> {
 fn close_window(pid: u32) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("taskkill")
+        hidden_cmd("taskkill")
             .args(["/PID", &pid.to_string(), "/F"])
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -154,40 +173,19 @@ fn list_open_windows() -> Result<Vec<OpenWindow>, String> {
     #[cfg(target_os = "windows")]
     {
         let script = r#"
-Add-Type -AssemblyName System.Windows.Forms
 $windows = Get-Process | Where-Object { $_.MainWindowTitle -and $_.MainWindowHandle -ne 0 }
 $result = @()
 foreach ($w in $windows) {
-    $icon = $null
-    if ($w.Path -and (Test-Path $w.Path)) {
-        try {
-            $extracted = [System.Drawing.Icon]::ExtractAssociatedIcon($w.Path)
-            if ($extracted) {
-                $bmp = $extracted.ToBitmap()
-                $ms = New-Object System.IO.MemoryStream
-                $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-                $bytes = $ms.ToArray()
-                $icon = [Convert]::ToBase64String($bytes)
-                $ms.Dispose()
-                $bmp.Dispose()
-                $extracted.Dispose()
-            }
-        } catch {}
-    }
-    $cmd = $null
-    try { $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId=$($w.Id)").CommandLine } catch {}
     $result += [PSCustomObject]@{
         title = $w.MainWindowTitle
         process_name = $w.ProcessName
-        icon = $icon
-        command_line = $cmd
         pid = $w.Id
     }
 }
 $result | ConvertTo-Json -Compress
 "#;
-        let output = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", script])
+        let output = hidden_cmd("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
             .output()
             .map_err(|e| e.to_string())?;
         let text = String::from_utf8_lossy(&output.stdout);
@@ -241,7 +239,7 @@ $result | ConvertTo-Json -Compress
 }
 
 fn steam_root() -> Option<std::path::PathBuf> {
-    let output = std::process::Command::new("reg")
+    let output = hidden_cmd("reg")
         .args(["query", r"HKCU\Software\Valve\Steam", "/v", "SteamPath"])
         .output()
         .ok()?;

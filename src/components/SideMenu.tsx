@@ -157,7 +157,7 @@ export function SideMenu({
       }
     };
     refresh();
-    const id = setInterval(refresh, 2000);
+    const id = setInterval(refresh, 800);
     return () => {
       alive = false;
       clearInterval(id);
