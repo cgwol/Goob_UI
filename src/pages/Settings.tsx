@@ -80,6 +80,7 @@ export function Settings() {
   const [drop, setDrop] = useState<Drop>(null);
   const dropRef = useRef(drop);
   dropRef.current = drop;
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number; up: boolean } | null>(null);
   const [dropFocus, setDropFocus] = useState(0);
   const dropFocusRef = useRef(dropFocus);
   dropFocusRef.current = dropFocus;
@@ -87,10 +88,14 @@ export function Settings() {
   const confirmRef = useRef(confirm);
   confirmRef.current = confirm;
 
-  // Check whether the app is currently set to start with Windows
   useEffect(() => {
     isEnabled().then(setStartup).catch((err) => console.error(err));
   }, []);
+
+  useEffect(() => {
+    const el = document.querySelectorAll(".setting")[focused] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: "nearest" });
+  }, [focused]);
 
   const toggleStartup = async () => {
     try {
@@ -106,7 +111,6 @@ export function Settings() {
     }
   };
 
-  // Wipe the games and apps libraries (localStorage) and delete all tile image files on disk
   const clearLibrary = async () => {
     localStorage.removeItem("games");
     localStorage.removeItem("apps");
@@ -124,7 +128,7 @@ export function Settings() {
     return [];
   };
 
-  const openDrop = (kind: Drop) => {
+  const openDrop = (kind: Drop, el?: HTMLElement | null) => {
     const list =
       kind === "sens"
         ? SENS
@@ -150,6 +154,17 @@ export function Settings() {
                 ? windowMode
                 : cursorMode;
     setDropFocus(Math.max(0, list.indexOf(current as never)));
+    if (el) {
+      const r = el.getBoundingClientRect();
+      const below = window.innerHeight - r.bottom;
+      const openUp = below < 200 && r.top > below;
+      setDropPos({
+        top: openUp ? r.top - 8 : r.bottom + 6,
+        left: r.left,
+        width: r.width,
+        up: openUp,
+      });
+    }
     setDrop(kind);
   };
 
@@ -170,13 +185,14 @@ export function Settings() {
 
   const choose = () => {
     const item = ITEMS[focusedRef.current];
+    const el = document.querySelectorAll(".setting")[focusedRef.current] as HTMLElement | undefined;
     if (item === "Start with Windows") void toggleStartup();
-    if (item === "Controller Stick Sensitivity") openDrop("sens");
-    if (item === "Controller Legend") openDrop("legend");
-    if (item === "Hide Cursor") openDrop("cursor");
-    if (item === "Theme") openDrop("theme");
-    if (item === "System volume") openDrop("volume");
-    if (item === "Window mode") openDrop("window");
+    if (item === "Controller Stick Sensitivity") openDrop("sens", el);
+    if (item === "Controller Legend") openDrop("legend", el);
+    if (item === "Hide Cursor") openDrop("cursor", el);
+    if (item === "Theme") openDrop("theme", el);
+    if (item === "System volume") openDrop("volume", el);
+    if (item === "Window mode") openDrop("window", el);
     if (item === "Clear Library") setConfirm(true);
   };
 
@@ -224,7 +240,6 @@ export function Settings() {
     };
     window.addEventListener("keydown", onKey);
 
-    // Gamepad polling with hold-to-repeat, paused while a confirmation popup is open
     let alive = true;
     let raf = 0;
     let prevCircle = false;
@@ -349,15 +364,16 @@ export function Settings() {
               type="button"
               className={i === focused ? "setting focused" : "setting"}
               onMouseEnter={() => setFocused(i)}
-              onClick={() => {
+              onClick={(e) => {
                 setFocused(i);
+                const el = e.currentTarget;
                 if (label === "Start with Windows") void toggleStartup();
-                if (label === "Controller Stick Sensitivity") openDrop("sens");
-                if (label === "Controller Legend") openDrop("legend");
-                if (label === "Hide Cursor") openDrop("cursor");
-                if (label === "Theme") openDrop("theme");
-                if (label === "System volume") openDrop("volume");
-                if (label === "Window mode") openDrop("window");
+                if (label === "Controller Stick Sensitivity") openDrop("sens", el);
+                if (label === "Controller Legend") openDrop("legend", el);
+                if (label === "Hide Cursor") openDrop("cursor", el);
+                if (label === "Theme") openDrop("theme", el);
+                if (label === "System volume") openDrop("volume", el);
+                if (label === "Window mode") openDrop("window", el);
                 if (label === "Clear Library") setConfirm(true);
               }}
             >
@@ -370,7 +386,19 @@ export function Settings() {
               (label === "Theme" && drop === "theme") ||
               (label === "System volume" && drop === "volume") ||
               (label === "Window mode" && drop === "window")) && (
-                <div className="dropdown">
+                <div
+                  className="dropdown"
+                  style={
+                    dropPos
+                      ? {
+                          top: dropPos.top,
+                          left: dropPos.left,
+                          width: dropPos.width,
+                          transform: dropPos.up ? "translateY(-100%)" : undefined,
+                        }
+                      : undefined
+                  }
+                >
                   {dropList.map((option, n) => (
                     <button
                       key={option}

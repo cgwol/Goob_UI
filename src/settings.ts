@@ -178,7 +178,7 @@ export async function applyWindowMode(mode: WindowMode) {
     await win.setAlwaysOnTop(false);
     await win.setDecorations(false);
     await win.setResizable(false);
-    await win.setShadow(false).catch(() => {});
+    await win.setShadow(false).catch(() => { });
     await win.unmaximize();
     if (monitor) {
       await win.setPosition(new PhysicalPosition(monitor.position.x, monitor.position.y));
@@ -188,12 +188,15 @@ export async function applyWindowMode(mode: WindowMode) {
   }
 
   // Windowed: a normal window, centered
+  // Windowed: a normal window, centered, locked to 16:9
   await win.setAlwaysOnTop(false);
   await win.setDecorations(true);
   await win.setResizable(true);
-  await win.setShadow(true).catch(() => {});
+  await win.setShadow(true).catch(() => { });
   await win.unmaximize();
+  await win.setMinSize(new PhysicalSize(960, 540)).catch(() => { });
   await win.setSize(new PhysicalSize(1280, 720));
+  await win.setAspectRatio(16 / 9).catch(() => { });
   await win.center();
 }
 
