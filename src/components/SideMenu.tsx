@@ -106,14 +106,14 @@ export function SideMenu({
   ctxRef.current = ctxFor;
   const { mode, padKind } = useInputMode();
 
-  const menuIcon =
-    mode === "keyboard"
-      ? "Esc"
-      : mode === "gamepad" && padKind === "playstation"
-        ? "OPTIONS"
-        : mode === "gamepad"
-          ? "☰"
-          : "";
+  // const menuIcon =
+  //   mode === "keyboard"
+  //     ? "Esc"
+  //     : mode === "gamepad" && padKind === "playstation"
+  //       ? "OPTIONS"
+  //       : mode === "gamepad"
+  //         ? "☰"
+  //         : "";
 
   const moreIcon =
     mode === "keyboard"

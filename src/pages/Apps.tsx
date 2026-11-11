@@ -21,7 +21,7 @@ import { getConfig, saveApps } from "../config";
 
 type AppItem = { id: string; name: string; path: string; image?: string; lastPlayed?: number };
 
-const KEY = "apps";
+// const KEY = "apps";
 
 function loadApps(): AppItem[] {
   try {
