@@ -1,6 +1,25 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::Manager;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+/// Hide the console window when spawning child processes on Windows (prevents flash in release builds).
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[cfg(target_os = "windows")]
+fn hidden_cmd(program: &str) -> std::process::Command {
+    let mut cmd = std::process::Command::new(program);
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}
+
+#[cfg(not(target_os = "windows"))]
+fn hidden_cmd(program: &str) -> std::process::Command {
+    std::process::Command::new(program)
+}
+
 #[derive(serde::Serialize)]
 struct OpenWindow {
     title: String,
@@ -64,8 +83,41 @@ fn system_action(action: String) -> Result<(), String> {
     }
 }
 
+/// Send the main Goob window behind other windows without minimizing it.
+/// The launched app comes forward, and Goob stays open so closing the other
+/// app (or Alt-Tab) returns you to it.
+fn send_goob_to_back(app: &tauri::AppHandle) {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(win) = app.get_webview_window("main") {
+            let _ = win.set_always_on_top(false);
+            let script = r#"
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class GoobWin {
+  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+}
+"@
+$hwnd = (Get-Process | Where-Object { $_.ProcessName -like '*goob*' -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1).MainWindowHandle
+if ($hwnd) { [GoobWin]::SetWindowPos([IntPtr]$hwnd, [IntPtr]1, 0, 0, 0, 0, 0x0013) }
+"#;
+            let _ = hidden_cmd("powershell")
+                .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
+                .spawn();
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+    }
+}
+
 #[tauri::command]
-fn launch_path(path: String) -> Result<(), String> {
+fn launch_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    // Push Goob out of the way so the launched app can come forward
+    send_goob_to_back(&app);
+
     let file = std::path::Path::new(&path);
     let is_bat = file
         .extension()
@@ -73,7 +125,7 @@ fn launch_path(path: String) -> Result<(), String> {
         .map(|e| e.eq_ignore_ascii_case("bat"))
         .unwrap_or(false);
     let mut cmd = if is_bat {
-        let mut c = std::process::Command::new("cmd");
+        let mut c = hidden_cmd("cmd");
         c.args(["/C", &path]);
         c
     } else {
@@ -83,6 +135,20 @@ fn launch_path(path: String) -> Result<(), String> {
         cmd.current_dir(dir);
     }
     cmd.spawn().map_err(|e| e.to_string())?;
+
+    // Try to focus the launched app after a short delay
+    let name = file
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_string();
+    if !name.is_empty() {
+        let app2 = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(600));
+            let _ = focus_window(app2, name);
+        });
+    }
     Ok(())
 }
 
@@ -91,7 +157,7 @@ fn launch_path(path: String) -> Result<(), String> {
 fn is_process_running(name: String) -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
-        let output = std::process::Command::new("tasklist")
+        let output = hidden_cmd("tasklist")
             .args(["/FI", &format!("IMAGENAME eq {}", name), "/NH"])
             .output()
             .map_err(|e| e.to_string())?;
@@ -107,9 +173,11 @@ fn is_process_running(name: String) -> Result<bool, String> {
 
 /// Bring an existing window to the foreground by process name or title (Windows).
 #[tauri::command]
-fn focus_window(query: String) -> Result<(), String> {
+fn focus_window(app: tauri::AppHandle, query: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
+        // Move Goob out of the way first (without minimizing)
+        send_goob_to_back(&app);
         let script = format!(
             r#"
             Add-Type -AssemblyName Microsoft.VisualBasic
@@ -117,15 +185,15 @@ fn focus_window(query: String) -> Result<(), String> {
             "#,
             query.replace('\'', "''")
         );
-        std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", &script])
+        hidden_cmd("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &script])
             .spawn()
             .map_err(|e| e.to_string())?;
         Ok(())
     }
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = query;
+        let _ = (app, query);
         Err("focus_window only supported on Windows".into())
     }
 }
@@ -135,7 +203,7 @@ fn focus_window(query: String) -> Result<(), String> {
 fn close_window(pid: u32) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("taskkill")
+        hidden_cmd("taskkill")
             .args(["/PID", &pid.to_string(), "/F"])
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -186,8 +254,8 @@ foreach ($w in $windows) {
 }
 $result | ConvertTo-Json -Compress
 "#;
-        let output = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", script])
+        let output = hidden_cmd("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
             .output()
             .map_err(|e| e.to_string())?;
         let text = String::from_utf8_lossy(&output.stdout);
@@ -241,7 +309,7 @@ $result | ConvertTo-Json -Compress
 }
 
 fn steam_root() -> Option<std::path::PathBuf> {
-    let output = std::process::Command::new("reg")
+    let output = hidden_cmd("reg")
         .args(["query", r"HKCU\Software\Valve\Steam", "/v", "SteamPath"])
         .output()
         .ok()?;
@@ -316,7 +384,8 @@ fn list_steam_games() -> Result<Vec<SteamGame>, String> {
 }
 
 #[tauri::command]
-fn launch_steam(app_id: String) -> Result<(), String> {
+fn launch_steam(app: tauri::AppHandle, app_id: String) -> Result<(), String> {
+    send_goob_to_back(&app);
     let steam = steam_root().ok_or("Steam install not found")?;
     std::process::Command::new(steam.join("steam.exe"))
         .arg("-applaunch")
