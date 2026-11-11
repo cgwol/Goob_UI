@@ -122,7 +122,7 @@ if ($hwnd) { [GoobWin]::SetWindowPos([IntPtr]$hwnd, [IntPtr]1, 0, 0, 0, 0, 0x001
 #[tauri::command]
 fn launch_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     // Push Goob out of the way so the launched app can come forward
-    // send_goob_to_back(&app);
+    send_goob_to_back(&app);
 
     let file = std::path::Path::new(&path);
     let is_bat = file
