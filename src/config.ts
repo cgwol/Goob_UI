@@ -132,3 +132,9 @@ export async function saveApps(apps: LibraryItem[]) {
   emit();
   await persist();
 }
+
+export async function saveSteamLibraries(steamLibraries: string[]) {
+  config = { ...config, steamLibraries };
+  emit();
+  await persist();
+}

@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-dialog";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { addRunning, processNameFromPath } from "../running-apps";
-import { getConfig, saveGames } from "../config";
+import { getConfig, saveGames, saveSteamLibraries } from "../config";
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
@@ -184,15 +184,26 @@ export function Games() {
 
   const openSteam = async () => {
     setAddOpen(false);
-    const cached = getConfig().steamLibraries ?? [];
-    const result = await invoke<{ games: SteamGame[]; libraries: string[] }>(
-      "list_steam_games",
-      { cached },
-    );
-    if (result.libraries?.length && result.libraries.join() !== cached.join()) {
-      void saveSteamLibraries(result.libraries);
+    try {
+      const cached = getConfig().steamLibraries ?? [];
+      const result = await invoke<{ games: SteamGame[]; libraries: string[] }>(
+        "list_steam_games",
+        { cached },
+      );
+      const games = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.games)
+          ? result.games
+          : [];
+      const libraries = Array.isArray(result?.libraries) ? result.libraries : [];
+      if (libraries.length && libraries.join() !== cached.join()) {
+        void saveSteamLibraries(libraries);
+      }
+      setSteamGames(games);
+    } catch (err) {
+      console.error("list_steam_games failed", err);
+      setSteamGames([]);
     }
-    setSteamGames(result.games);
   };
 
   const addSteam = (game: SteamGame) => {
@@ -572,8 +583,4 @@ export function Games() {
       <SideMenu open={menuOpen} onClose={closeMenu} />
     </div>
   );
-}
-
-function saveSteamLibraries(libraries: string[]) {
-  throw new Error('Function not implemented.');
 }
