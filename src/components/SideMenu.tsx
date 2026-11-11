@@ -192,6 +192,7 @@ export function SideMenu({
   useEffect(() => {
     if (!open) {
       setPowerOpen(false);
+      setCtxFor(null);
       return;
     }
     play("menu");
@@ -246,14 +247,31 @@ export function SideMenu({
     let prevTriangle = false;
     let prevClose = false;
     let armed = false;
+    let wasCtx = false;
 
     const tick = () => {
       if (!alive) return;
       if (ctxRef.current) {
+        wasCtx = true;
         raf = requestAnimationFrame(tick);
         return;
       }
+
       const pad = getPad();
+
+      // Prompt just closed — ignore the button that closed or selected it
+      if (wasCtx) {
+        wasCtx = false;
+        prevClose = !!(
+          pad?.buttons[1]?.pressed ||
+          pad?.buttons[16]?.pressed ||
+          pad?.buttons[9]?.pressed
+        );
+        // Don't treat the Cross that chose Cancel as selecting the app
+        prevCross = !!pad?.buttons[0]?.pressed;
+        armed = false;
+      }
+
       if (pad) {
         const zone = getDeadzone();
         const y = pad.axes[1] ?? 0;

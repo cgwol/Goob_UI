@@ -258,6 +258,10 @@ export function Apps() {
       const typing = (e.target as HTMLElement).tagName === "INPUT";
       if (e.key === "Backspace" && !typing) {
         e.preventDefault();
+        // Close the popup instead of leaving the page
+        if (menuForRef.current || addedIdRef.current || addOpenRef.current) {
+          return;
+        }
         navigate("/");
       }
       if (
@@ -314,6 +318,8 @@ export function Apps() {
       if (wasPaused) {
         wasPaused = false;
         armedCross = false;
+        const padNow = getPad();
+        prevCircle = !!padNow?.buttons[1]?.pressed;
       }
 
       const pad = getPad();

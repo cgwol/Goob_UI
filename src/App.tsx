@@ -15,7 +15,7 @@ import { setInputMode, useInputMode, getPad } from "./input-mode";
 import { Games } from "./pages/Games";
 import { Apps } from "./pages/Apps";
 import { Settings } from "./pages/Settings";
-import { getDeadzone, applyWindowMode, getWindowMode } from "./settings";
+import { getDeadzone, applyWindowMode, getWindowMode, useCursorMode } from "./settings";
 import { useSystemSounds } from "./sound";
 
 const TILES = ["Games", "Apps", "Settings"];
@@ -25,6 +25,9 @@ const TILES = ["Games", "Apps", "Settings"];
  * so button legends can update. Does not hide the cursor.
  */
 function useInputTracker() {
+  const cursorMode = useCursorMode();
+  const { mode } = useInputMode();
+
   useEffect(() => {
     const onKey = () => setInputMode("keyboard");
     const onMouse = (e: MouseEvent) => {
@@ -71,6 +74,17 @@ function useInputTracker() {
       window.removeEventListener("wheel", onWheel);
     };
   }, []);
+
+  // Hide/show cursor based on the setting and current input mode
+  useEffect(() => {
+    const shouldHide =
+      cursorMode === "Off at All Times" ||
+      (cursorMode === "Off When Using a Controller" && mode === "gamepad");
+    document.body.classList.toggle("cursor-hidden", shouldHide);
+    return () => {
+      document.body.classList.remove("cursor-hidden");
+    };
+  }, [cursorMode, mode]);
 }
 
 /**

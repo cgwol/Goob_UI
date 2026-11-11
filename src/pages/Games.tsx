@@ -243,7 +243,7 @@ export function Games() {
   const deleteTile = () => {
     if (!menuFor) return;
     const game = gamesRef.current.find((g) => g.id === menuFor);
-    if (game?.image) invoke("delete_tile_image", { path: game.image }).catch(() => {});
+    if (game?.image) invoke("delete_tile_image", { path: game.image }).catch(() => { });
     setGames((list) => list.filter((g) => g.id !== menuFor));
     setMenuFor(null);
     setFocused(0);
@@ -294,6 +294,10 @@ export function Games() {
       const typing = (e.target as HTMLElement).tagName === "INPUT";
       if (e.key === "Backspace" && !typing) {
         e.preventDefault();
+        // Close the popup instead of leaving the page
+        if (menuForRef.current || addedIdRef.current || addOpenRef.current || steamRef.current) {
+          return;
+        }
         navigate("/");
       }
       if (
