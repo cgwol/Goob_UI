@@ -28,6 +28,7 @@ export type GoobConfig = {
   settings: ConfigSettings;
   games: LibraryItem[];
   apps: LibraryItem[];
+  steamLibraries: string[];
 };
 
 const DEFAULTS: ConfigSettings = {
@@ -43,7 +44,7 @@ let ready = false;
 const listeners = new Set<() => void>();
 
 function empty(): GoobConfig {
-  return { version: 1, settings: { ...DEFAULTS }, games: [], apps: [] };
+  return { version: 1, settings: { ...DEFAULTS }, games: [], apps: [], steamLibraries: [] };
 }
 
 function emit() {
@@ -62,15 +63,16 @@ function migrateFromLocalStorage(): GoobConfig {
   return {
     version: 1,
     settings: {
-      sensitivity: read("sensitivity", DEFAULTS.sensitivity),
-      theme: read("theme", DEFAULTS.theme),
-      volume: read("volume", DEFAULTS.volume),
-      windowMode: read("window-mode", DEFAULTS.windowMode),
-      cursorMode: read("cursor-mode", DEFAULTS.cursorMode),
+        sensitivity: read("sensitivity", DEFAULTS.sensitivity),
+        theme: read("theme", DEFAULTS.theme),
+        volume: read("volume", DEFAULTS.volume),
+        windowMode: read("window-mode", DEFAULTS.windowMode),
+        cursorMode: read("cursor-mode", DEFAULTS.cursorMode),
     },
     games: list("games"),
     apps: list("apps"),
-  };
+    steamLibraries: []
+};
 }
 
 async function persist() {
@@ -89,6 +91,7 @@ export async function initConfig() {
         settings: { ...DEFAULTS, ...(parsed.settings ?? {}) },
         games: Array.isArray(parsed.games) ? parsed.games : [],
         apps: Array.isArray(parsed.apps) ? parsed.apps : [],
+        steamLibraries: Array.isArray(parsed.steamLibraries) ? parsed.steamLibraries : [],
       };
     } else {
       config = migrateFromLocalStorage();

@@ -35,6 +35,12 @@ struct SteamGame {
     name: String,
 }
 
+#[derive(serde::Serialize)]
+struct SteamList {
+    games: Vec<SteamGame>,
+    libraries: Vec<String>,
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -116,7 +122,7 @@ if ($hwnd) { [GoobWin]::SetWindowPos([IntPtr]$hwnd, [IntPtr]1, 0, 0, 0, 0, 0x001
 #[tauri::command]
 fn launch_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     // Push Goob out of the way so the launched app can come forward
-    send_goob_to_back(&app);
+    // send_goob_to_back(&app);
 
     let file = std::path::Path::new(&path);
     let is_bat = file
@@ -177,7 +183,7 @@ fn focus_window(app: tauri::AppHandle, query: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         // Move Goob out of the way first (without minimizing)
-        send_goob_to_back(&app);
+        // send_goob_to_back(&app);
         let script = format!(
             r#"
             Add-Type -AssemblyName Microsoft.VisualBasic
@@ -339,26 +345,25 @@ fn field(body: &str, key: &str) -> String {
 }
 
 #[tauri::command]
-fn list_steam_games() -> Result<Vec<SteamGame>, String> {
-    let steam = steam_root().ok_or("Steam install not found")?;
-    let vdf = steam.join("steamapps").join("libraryfolders.vdf");
-    let text = std::fs::read_to_string(&vdf).map_err(|e| e.to_string())?;
-
-    let mut libs = vec![steam.join("steamapps")];
-    for line in text.lines() {
-        let line = line.trim();
-        if let Some(rest) = line.strip_prefix("\"path\"") {
-            let path = rest.trim().trim_matches('"').replace("\\\\", "\\");
-            let lib = std::path::PathBuf::from(path).join("steamapps");
-            if !libs.contains(&lib) {
-                libs.push(lib);
-            }
+fn list_steam_games(cached: Option<Vec<String>>) -> Result<SteamList, String> {
+    let libs = if let Some(paths) = cached.as_ref().filter(|p| !p.is_empty()) {
+        let found: Vec<std::path::PathBuf> = paths
+            .iter()
+            .map(std::path::PathBuf::from)
+            .filter(|p| p.exists())
+            .collect();
+        if found.is_empty() {
+            discover_steam_libs()?
+        } else {
+            found
         }
-    }
+    } else {
+        discover_steam_libs()?
+    };
 
     let mut games = Vec::new();
-    for lib in libs {
-        let Ok(entries) = std::fs::read_dir(&lib) else {
+    for lib in &libs {
+        let Ok(entries) = std::fs::read_dir(lib) else {
             continue;
         };
         for entry in entries.flatten() {
@@ -380,12 +385,39 @@ fn list_steam_games() -> Result<Vec<SteamGame>, String> {
         }
     }
     games.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    Ok(games)
+    Ok(SteamList {
+        games,
+        libraries: libs
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect(),
+    })
+}
+
+/// Find every Steam library folder. This is the slow path: it shells out to
+/// `reg.exe` once, then reads libraryfolders.vdf.
+fn discover_steam_libs() -> Result<Vec<std::path::PathBuf>, String> {
+    let steam = steam_root().ok_or("Steam install not found")?;
+    let vdf = steam.join("steamapps").join("libraryfolders.vdf");
+    let text = std::fs::read_to_string(&vdf).unwrap_or_default();
+
+    let mut libs = vec![steam.join("steamapps")];
+    for line in text.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("\"path\"") {
+            let path = rest.trim().trim_matches('"').replace("\\\\", "\\");
+            let lib = std::path::PathBuf::from(path).join("steamapps");
+            if !libs.contains(&lib) {
+                libs.push(lib);
+            }
+        }
+    }
+    Ok(libs)
 }
 
 #[tauri::command]
 fn launch_steam(app: tauri::AppHandle, app_id: String) -> Result<(), String> {
-    send_goob_to_back(&app);
+    // send_goob_to_back(&app);
     let steam = steam_root().ok_or("Steam install not found")?;
     std::process::Command::new(steam.join("steam.exe"))
         .arg("-applaunch")

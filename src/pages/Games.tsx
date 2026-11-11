@@ -22,7 +22,7 @@ import { play } from "../sound";
 type Game = { id: string; name: string; path: string; steamId?: string; image?: string; lastPlayed?: number };
 type SteamGame = { app_id: string; name: string };
 
-const KEY = "games";
+// const KEY = "games";
 
 function loadGames(): Game[] {
   try {
@@ -184,13 +184,15 @@ export function Games() {
 
   const openSteam = async () => {
     setAddOpen(false);
-    try {
-      const list = await invoke<SteamGame[]>("list_steam_games");
-      setSteamGames(list);
-    } catch (err) {
-      console.error(err);
-      setSteamGames([]);
+    const cached = getConfig().steamLibraries ?? [];
+    const result = await invoke<{ games: SteamGame[]; libraries: string[] }>(
+      "list_steam_games",
+      { cached },
+    );
+    if (result.libraries?.length && result.libraries.join() !== cached.join()) {
+      void saveSteamLibraries(result.libraries);
     }
+    setSteamGames(result.games);
   };
 
   const addSteam = (game: SteamGame) => {
@@ -570,4 +572,8 @@ export function Games() {
       <SideMenu open={menuOpen} onClose={closeMenu} />
     </div>
   );
+}
+
+function saveSteamLibraries(libraries: string[]) {
+  throw new Error('Function not implemented.');
 }
