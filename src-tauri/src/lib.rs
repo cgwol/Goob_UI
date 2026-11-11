@@ -479,6 +479,27 @@ fn clear_tiles(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn config_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("config.json"))
+}
+
+#[tauri::command]
+fn load_config(app: tauri::AppHandle) -> Result<String, String> {
+    let path = config_path(&app)?;
+    if !path.exists() {
+        return Ok(String::new());
+    }
+    std::fs::read_to_string(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_config(app: tauri::AppHandle, contents: String) -> Result<(), String> {
+    let path = config_path(&app)?;
+    std::fs::write(path, contents).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
