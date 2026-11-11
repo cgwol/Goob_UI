@@ -59,11 +59,6 @@
   --line: #2a2a2a;
 }
 
-body.cursor-hidden,
-body.cursor-hidden * {
-  cursor: none !important;
-}
-
 html,
 body,
 #root {
