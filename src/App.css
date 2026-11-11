@@ -132,14 +132,15 @@ body.cursor-hidden * {
 .tile-wrap {
   display: flex;
   flex-direction: column;
-  gap: 0.6vw;
-  width: 10vw;
+  gap: 8px;
+  width: max(180px, 10vw);
+  container-type: inline-size;
 }
 
 .tile-wrap,
 .row > .tile {
-  flex: 0 0 10vw;
-  width: 10vw;
+  flex: 0 0 max(180px, 10vw);
+  width: max(180px, 10vw);
 }
 
 .row > .tile {
@@ -148,17 +149,18 @@ body.cursor-hidden * {
 
 .tile-title {
   width: 100%;
-  height: 2.4vw;
+  height: 20cqw;
+  min-height: 36px;
   box-sizing: border-box;
-  border-radius: 0.7vw;
+  border-radius: 10px;
   background: var(--surface);
   color: var(--fg);
   display: block;
   overflow: hidden;
-  padding: 0 0.5vw;
-  font-size: 0.9vw;
+  padding: 0 8px;
+  font-size: 8.5cqw;
   font-weight: 600;
-  line-height: 2.4vw;
+  line-height: 20cqw;
   text-align: left;
   white-space: nowrap;
 }
@@ -188,14 +190,14 @@ body.cursor-hidden * {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 10vw;
+  width: max(180px, 10vw);
   aspect-ratio: 2 / 3;
   height: auto;
   border: none;
-  border-radius: 0.9vw;
+  border-radius: 14px;
   background: var(--surface);
   color: var(--fg);
-  font-size: 1vw;
+  font-size: max(16px, 1vw);
   font-weight: 600;
   text-align: center;
   cursor: pointer;
