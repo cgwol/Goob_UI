@@ -59,11 +59,6 @@
   --line: #2a2a2a;
 }
 
-body.cursor-hidden,
-body.cursor-hidden * {
-  cursor: none !important;
-}
-
 html,
 body,
 #root {
@@ -73,6 +68,11 @@ body,
   background: var(--bg);
   color: var(--fg);
   font-family: system-ui, sans-serif;
+}
+
+body.cursor-hidden,
+body.cursor-hidden * {
+  cursor: none !important;
 }
 
 .shell {
@@ -461,42 +461,6 @@ body,
 }
 
 .dropdown-item.focused {
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
-.ctx-menu {
-  position: fixed;
-  left: 290px;
-  min-width: 140px;
-  background: var(--popup);
-  border-radius: 12px;
-  padding: 0.4rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
-  z-index: 30;
-}
-
-.ctx-item {
-  border: none;
-  border-radius: 8px;
-  padding: 0.65rem 1rem;
-  text-align: left;
-  background: transparent;
-  color: var(--fg);
-  font-size: 1rem;
-  cursor: pointer;
-}
-
-.ctx-item:hover,
-.ctx-item:focus-visible {
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
-.ctx-item.focused {
   background: var(--surface-2);
   box-shadow: inset 0 0 0 2px var(--accent);
 }

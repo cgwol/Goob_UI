@@ -1,6 +1,6 @@
 # ![icon](/src/assets/32x32.png) Goob UI 
 
-**Version 1.1.0**
+**Version 1.1.1**
 
 A modern, controller-first desktop interface built with **Tauri + React + TypeScript**.
 

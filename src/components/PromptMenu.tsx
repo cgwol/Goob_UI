@@ -43,7 +43,12 @@ export function Popup({
 
     const onKey = (e: KeyboardEvent) => {
       const inField = (e.target as HTMLElement).tagName === "INPUT";
-      if (e.key === "Escape") onCloseRef.current();
+      if (e.key === "Escape" || e.key === "Backspace") {
+        if (e.key === "Backspace" && inField) return; // allow typing
+        e.preventDefault();
+        onCloseRef.current();
+        return;
+      }
       if (inField) return;
       const list = actionsRef.current;
       if (e.key === "ArrowUp") setFocused((f) => (f - 1 + list.length) % list.length);

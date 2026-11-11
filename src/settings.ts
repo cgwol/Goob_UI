@@ -14,6 +14,7 @@ export type Theme = "Dark" | "Light" | "Forest" | "Ocean" | "Black";
 export type Volume = "Off" | "Low" | "Medium" | "High";
 export type WindowMode = "Windowed fullscreen" | "Fullscreen" | "Windowed";
 export type Resolution = "720p" | "1080p" | "1440p" | "4K";
+export type CursorMode = "Off at All Times" | "Off When Using a Controller" | "On At All Times";
 
 const KEY = "sensitivity";
 const THEME_KEY = "theme";
@@ -30,6 +31,12 @@ const RES_SIZE: Record<Resolution, { width: number; height: number }> = {
   "1440p": { width: 2560, height: 1440 },
   "4K": { width: 3840, height: 2160 },
 };
+const CURSOR_KEY = "cursor-mode";
+const CURSOR_MODES: CursorMode[] = [
+  "Off at All Times",
+  "Off When Using a Controller",
+  "On At All Times",
+];
 
 let sensitivity: Sensitivity = load();
 let theme: Theme = loadTheme();
@@ -37,6 +44,7 @@ const listeners = new Set<() => void>();
 let volume: Volume = loadVolume();
 let windowMode: WindowMode = loadWindow();
 let resolution: Resolution = loadResolution();
+let cursorMode: CursorMode = loadCursorMode();
 
 function load(): Sensitivity {
   const saved = localStorage.getItem(KEY);
@@ -315,3 +323,25 @@ getCurrentWindow().onFocusChanged(({ payload: focused }) => {
     if (targetSize(monitor).fills) await coverMonitor();
   })();
 });
+
+function loadCursorMode(): CursorMode {
+  const saved = localStorage.getItem(CURSOR_KEY);
+  return CURSOR_MODES.includes(saved as CursorMode)
+    ? (saved as CursorMode)
+    : "Off When Using a Controller";
+}
+
+export function getCursorMode() {
+  return cursorMode;
+}
+
+export function setCursorMode(next: CursorMode) {
+  cursorMode = next;
+  localStorage.setItem(CURSOR_KEY, next);
+  emit();
+}
+
+export function useCursorMode() {
+  // same pattern as the other settings hooks
+  return cursorMode;
+}

@@ -2,7 +2,6 @@
  * Root application component for Goob UI.
  * Defines the top-level routes (Home, Games, Apps, Settings) and wires up
  * global behaviors that should run for the lifetime of the app:
- * - Cursor hiding based on input mode (keyboard/controller hide the OS cursor)
  * - System sounds
  * - Initial application of the saved window mode
  *
@@ -16,49 +15,34 @@ import { setInputMode, useInputMode, getPad } from "./input-mode";
 import { Games } from "./pages/Games";
 import { Apps } from "./pages/Apps";
 import { Settings } from "./pages/Settings";
-import { getDeadzone, applyWindowMode, getWindowMode } from "./settings";
+import { getDeadzone, applyWindowMode, getWindowMode, useCursorMode } from "./settings";
 import { useSystemSounds } from "./sound";
 
 const TILES = ["Games", "Apps", "Settings"];
 
 /**
- * Hook that hides the mouse cursor whenever the user is driving the UI with
- * keyboard or gamepad, and shows it again on real mouse movement.
- * Uses a CSS class on <body> (see App.css). The OS-level cursor hide is handled
- * by a companion Rust command in later versions of the app.
+ * Tracks whether the user is driving the UI with keyboard, mouse, or gamepad
+ * so button legends can update. Does not hide the cursor.
  */
-function useCursorMode() {
-  useEffect(() => {
-    const hide = () => document.body.classList.add("cursor-hidden");
-    const show = () => document.body.classList.remove("cursor-hidden");
+function useInputTracker() {
+  const cursorMode = useCursorMode();
+  const { mode } = useInputMode();
 
-    const onKey = () => {
-      setInputMode("keyboard");
-      hide();
-    };
-    // Only treat movement larger than a couple of pixels as intentional mouse use
-    // (avoids the synthetic mousemove events browsers fire on focus)
+  useEffect(() => {
+    const onKey = () => setInputMode("keyboard");
     const onMouse = (e: MouseEvent) => {
       if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) {
         setInputMode("mouse");
-        show();
       }
     };
-    const onMouseDown = () => {
-      setInputMode("mouse");
-      show();
-    };
-    const onWheel = () => {
-      setInputMode("mouse");
-      show();
-    };
+    const onMouseDown = () => setInputMode("mouse");
+    const onWheel = () => setInputMode("mouse");
 
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousemove", onMouse);
     window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("wheel", onWheel);
 
-    // Continuously poll the gamepad so that any stick or button activity switches to gamepad mode and hides the cursor
     let alive = true;
     let raf = 0;
     let prev = "";
@@ -74,7 +58,6 @@ function useCursorMode() {
         const now = `${stick}:${pressed}`;
         if (now !== prev && (stick || pressed)) {
           setInputMode("gamepad", pad.id);
-          hide();
         }
         prev = now;
       }
@@ -91,6 +74,17 @@ function useCursorMode() {
       window.removeEventListener("wheel", onWheel);
     };
   }, []);
+
+  // Hide/show cursor based on the setting and current input mode
+  useEffect(() => {
+    const shouldHide =
+      cursorMode === "Off at All Times" ||
+      (cursorMode === "Off When Using a Controller" && mode === "gamepad");
+    document.body.classList.toggle("cursor-hidden", shouldHide);
+    return () => {
+      document.body.classList.remove("cursor-hidden");
+    };
+  }, [cursorMode, mode]);
 }
 
 /**
@@ -256,7 +250,7 @@ function Home() {
 }
 
 export default function App() {
-  useCursorMode();
+  useInputTracker();
   useSystemSounds();
   // Apply the saved window mode once on startup
   useEffect(() => {
