@@ -59,6 +59,18 @@
   --line: #2a2a2a;
 }
 
+.theme-goobing {
+  --bg: #251f31;
+  --fg: #f6f2f8;
+  --muted: #a396aa;
+  --surface: #17141c;
+  --surface-2: #241e2c;
+  --accent: #00d6e8;
+  --popup: #110e16;
+  --input: #0c0a10;
+  --line: #332a3c;
+}
+
 html,
 body,
 #root {
@@ -467,4 +479,49 @@ body.cursor-hidden * {
 .dropdown-item.focused {
   background: var(--surface-2);
   box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.version-box {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.version-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.update-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.45rem 0.9rem;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  margin-right: 0.6rem;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.menu-title {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.menu-logo {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
 }

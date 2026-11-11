@@ -9,14 +9,14 @@ import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 
 export type Sensitivity = "Low" | "Medium" | "High";
-export type Theme = "Dark" | "Light" | "Forest" | "Ocean" | "Black";
+export type Theme = "Dark" | "Light" | "Forest" | "Ocean" | "Black" | "Goobing";
 export type Volume = "Off" | "Low" | "Medium" | "High";
 export type WindowMode = "Windowed fullscreen" | "Fullscreen" | "Windowed";
 export type CursorMode = "Off at All Times" | "Off When Using a Controller" | "On At All Times";
 
 const KEY = "sensitivity";
 const THEME_KEY = "theme";
-const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Black"];
+const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Black" , "Goobing"];
 const VOLUME_KEY = "volume";
 const VOLUMES: Volume[] = ["Off", "Low", "Medium", "High"];
 const WINDOW_KEY = "window-mode";

@@ -8,6 +8,7 @@
  * The Home screen is a simple horizontal tile row that navigates to the three main sections.
  */
 import "./App.css";
+import goobIcon from './assets/32x32.png'
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { SideMenu } from "./components/SideMenu";
@@ -236,6 +237,7 @@ function Home() {
     <div className="shell">
       <header className="topbar">
         <span className="brand" onClick={() => setMenuOpen(true)}>
+          <img className="brand-icon" src={goobIcon} alt="" />
           {menuIcon && <span className="keycap">{menuIcon}</span>}
           Home
         </span>

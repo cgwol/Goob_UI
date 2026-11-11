@@ -6,10 +6,12 @@
  * Changes are applied immediately through the settings module and persisted to localStorage.
  * Full keyboard and gamepad support with hold-to-repeat navigation.
  */
+import goobIcon from '../assets/32x32.png'
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad, setPadChoice, type PadChoice } from "../input-mode";
@@ -45,7 +47,7 @@ const ITEMS = [
 ] as const;
 const SENS: Sensitivity[] = ["Low", "Medium", "High"];
 const LEGENDS: PadChoice[] = ["auto detection", "playstation", "xbox", "nintendo", "generic"];
-const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Black"];
+const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Goobing" , "Black"];
 const VOLUMES: Volume[] = ["Off", "Low", "Medium", "High"];
 const WINDOWS: WindowMode[] = ["Windowed fullscreen", "Fullscreen", "Windowed"];
 const CURSORS: CursorMode[] = [
@@ -55,6 +57,28 @@ const CURSORS: CursorMode[] = [
 ];
 
 type Drop = "sens" | "legend" | "theme" | "volume" | "window" | "cursor" | null;
+
+/* 
+
+Update Every Version!
+
+*/
+const APP_VERSION = "1.1.1";
+const RELEASES_API = "https://api.github.com/repos/cgwol/Goob_UI/releases/latest";
+
+function parseVersion(v: string): number[] {
+  return v.replace(/^v/i, "").split(".").map((n) => parseInt(n, 10) || 0);
+}
+
+function isNewer(latest: string, current: string): boolean {
+  const a = parseVersion(latest);
+  const b = parseVersion(current);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] ?? 0) > (b[i] ?? 0)) return true;
+    if ((a[i] ?? 0) < (b[i] ?? 0)) return false;
+  }
+  return false;
+}
 
 function legendLabel(value: PadChoice) {
   return value === "auto detection" ? "Auto" : value[0].toUpperCase() + value.slice(1);
@@ -87,6 +111,21 @@ export function Settings() {
   const [confirm, setConfirm] = useState(false);
   const confirmRef = useRef(confirm);
   confirmRef.current = confirm;
+  const [updateUrl, setUpdateUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(RELEASES_API)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { tag_name?: string; html_url?: string } | null) => {
+        if (!alive || !data?.tag_name || !data.html_url) return;
+        if (isNewer(data.tag_name, APP_VERSION)) setUpdateUrl(data.html_url);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     isEnabled().then(setStartup).catch((err) => console.error(err));
@@ -349,6 +388,7 @@ export function Settings() {
     <div className="shell">
       <header className="topbar">
         <span className="brand" onClick={() => setMenuOpen(true)}>
+          <img className="brand-icon" src={goobIcon} alt="" />
           {menuIcon && <span className="keycap">{menuIcon}</span>}
           Settings
         </span>
@@ -443,6 +483,18 @@ export function Settings() {
         {backIcon && <span className="keycap">{backIcon}</span>}
         Back
       </button>
+      <div className="version-box">
+        {updateUrl && (
+          <button
+            type="button"
+            className="update-btn"
+            onClick={() => void openUrl(updateUrl)}
+          >
+            Update available
+          </button>
+        )}
+        <span className="version-label">Version {APP_VERSION}</span>
+      </div>
       <SideMenu open={menuOpen} onClose={closeMenu} />
     </div>
   );

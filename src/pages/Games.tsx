@@ -6,6 +6,7 @@
  * Full keyboard and gamepad navigation with hold-to-repeat. Triangle / K opens the
  * per-tile menu. Circle / Backspace returns to the home screen.
  */
+import goobIcon from '../assets/32x32.png'
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -434,6 +435,7 @@ export function Games() {
     <div className="shell">
       <header className="topbar">
         <span className="brand" onClick={() => setMenuOpen(true)}>
+          <img className="brand-icon" src={goobIcon} alt="" />
           {menuIcon && <span className="keycap">{menuIcon}</span>}
           Games
         </span>

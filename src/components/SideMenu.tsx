@@ -7,6 +7,7 @@
  * K / Triangle / Y or the ... button opens a popup to Open or Close the app.
  * Supports both keyboard and gamepad navigation.
  */
+import goobIcon from '../assets/128x128.png'
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -70,11 +71,11 @@ function isGoob(w: OpenWindow): boolean {
   const p = (w.process_name || "").toLowerCase();
   // Filtered Titles to hide in side menu
   return t.includes("goob")
-     || p.includes("goob")
-     || t.includes("react_g_gui")
-     || p.includes("razerappengine")
-     || p.includes("textinputhost")
-     ;
+    || p.includes("goob")
+    || t.includes("react_g_gui")
+    || p.includes("razerappengine")
+    || p.includes("textinputhost")
+    ;
 }
 
 type MenuEntry = {
@@ -134,15 +135,15 @@ export function SideMenu({
   const entries: MenuEntry[] = powerOpen
     ? POWER.map((label) => ({ kind: "base" as const, label }))
     : [
-        { kind: "base" as const, label: "Home" },
-        ...live.map((w) => ({
-          kind: "window" as const,
-          label: displayName(w, bats),
-          window: w,
-        })),
-        { kind: "base" as const, label: "Settings" },
-        { kind: "base" as const, label: "Close" },
-      ];
+      { kind: "base" as const, label: "Home" },
+      ...live.map((w) => ({
+        kind: "window" as const,
+        label: displayName(w, bats),
+        window: w,
+      })),
+      { kind: "base" as const, label: "Settings" },
+      { kind: "base" as const, label: "Close" },
+    ];
 
   // Poll open windows while the menu is open
   useEffect(() => {
@@ -203,17 +204,17 @@ export function SideMenu({
       const list = powerRef.current
         ? POWER.map((label) => ({ kind: "base" as const, label }))
         : [
-            { kind: "base" as const, label: "Home" },
-            ...windowsRef.current
-              .filter((w) => !isGoob(w))
-              .map((w) => ({
-                kind: "window" as const,
-                label: displayName(w, getRunning().filter((r) => r.path.toLowerCase().endsWith(".bat"))),
-                window: w,
-              })),
-            { kind: "base" as const, label: "Settings" },
-            { kind: "base" as const, label: "Close" },
-          ];
+          { kind: "base" as const, label: "Home" },
+          ...windowsRef.current
+            .filter((w) => !isGoob(w))
+            .map((w) => ({
+              kind: "window" as const,
+              label: displayName(w, getRunning().filter((r) => r.path.toLowerCase().endsWith(".bat"))),
+              window: w,
+            })),
+          { kind: "base" as const, label: "Settings" },
+          { kind: "base" as const, label: "Close" },
+        ];
       const n = list.length;
       if (e.key === "Escape" || e.key === "ArrowLeft") {
         if (powerRef.current) {
@@ -285,17 +286,17 @@ export function SideMenu({
         const list = powerRef.current
           ? POWER.map((label) => ({ kind: "base" as const, label }))
           : [
-              { kind: "base" as const, label: "Home" },
-              ...windowsRef.current
-                .filter((w) => !isGoob(w))
-                .map((w) => ({
-                  kind: "window" as const,
-                  label: displayName(w, getRunning().filter((r) => r.path.toLowerCase().endsWith(".bat"))),
-                  window: w,
-                })),
-              { kind: "base" as const, label: "Settings" },
-              { kind: "base" as const, label: "Close" },
-            ];
+            { kind: "base" as const, label: "Home" },
+            ...windowsRef.current
+              .filter((w) => !isGoob(w))
+              .map((w) => ({
+                kind: "window" as const,
+                label: displayName(w, getRunning().filter((r) => r.path.toLowerCase().endsWith(".bat"))),
+                window: w,
+              })),
+            { kind: "base" as const, label: "Settings" },
+            { kind: "base" as const, label: "Close" },
+          ];
         const n = list.length;
 
         if (up && !prevUp) {
@@ -345,8 +346,7 @@ export function SideMenu({
     <div className="menu-backdrop" onClick={onClose}>
       <aside className="side-menu" onClick={(e) => e.stopPropagation()}>
         <span className="menu-title">
-          {menuIcon && <span className="keycap">{menuIcon}</span>}
-          {powerOpen ? "Power" : "Menu"}
+          <img className="menu-logo" src={goobIcon} alt="Goob" />
         </span>
         {entries.map((entry, i) => (
           <button
