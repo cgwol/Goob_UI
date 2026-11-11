@@ -141,7 +141,7 @@ if not exist "%PROFILE%" mkdir "%PROFILE%"
 
 ### Launch Batch File Example with Autohotkey for cursor hiding (Optional)
 
-Use an AutoHotkey v1 script (```CursorHide.ahk``) that:
+Use an AutoHotkey v1 script (```CursorHide.ahk```) that:
 
 - Hides the system cursor when the batch starts
 - Shows the cursor immediately on mouse movement
@@ -290,15 +290,15 @@ del "%TEMP%\cursor_hide.lock"
 
 ## Current Known Issues
 
-1. Production builds getting game through steam can be slow.
-2. Proper Windowed Mode and Windows Fullscreen support that doesnt rely on user settings resolution
-3. Cursor issues when tabbing back into app.  
+1. Production builds getting game through steam can be slow. (Config file should fix this)
+2. ~~Proper Windowed Mode and Windows Fullscreen support that doesnt rely on user settings resolution~~
+3. ~~Cursor issues when tabbing back into app.~~ 
 
 ## Features to be added in future versions
 
 1. Local config file
 2. Sleep Screen
-3. In app/gmae home button support
+3. In app/game home button support
 
 ## How to Run the Dev Environment
 

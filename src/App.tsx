@@ -22,7 +22,7 @@ const TILES = ["Games", "Apps", "Settings"];
 
 /**
  * Tracks whether the user is driving the UI with keyboard, mouse, or gamepad
- * so button legends can update. Does not hide the cursor.
+ * so button legends can update, and hides the cursor based on the setting.
  */
 function useInputTracker() {
   const cursorMode = useCursorMode();
@@ -32,11 +32,20 @@ function useInputTracker() {
     const onKey = () => setInputMode("keyboard");
     const onMouse = (e: MouseEvent) => {
       if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) {
+        // A click/move to focus the window should not bring the cursor back
+        // while a controller is connected.
+        if (getPad()) return;
         setInputMode("mouse");
       }
     };
-    const onMouseDown = () => setInputMode("mouse");
-    const onWheel = () => setInputMode("mouse");
+    const onMouseDown = () => {
+      if (getPad()) return;
+      setInputMode("mouse");
+    };
+    const onWheel = () => {
+      if (getPad()) return;
+      setInputMode("mouse");
+    };
 
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousemove", onMouse);
@@ -75,13 +84,19 @@ function useInputTracker() {
     };
   }, []);
 
-  // Hide/show cursor based on the setting and current input mode
+  // Hide while a controller is connected, even after a click that focuses the window.
   useEffect(() => {
-    const shouldHide =
-      cursorMode === "Off at All Times" ||
-      (cursorMode === "Off When Using a Controller" && mode === "gamepad");
-    document.body.classList.toggle("cursor-hidden", shouldHide);
+    const apply = () => {
+      const usingController = mode === "gamepad" || !!getPad();
+      const shouldHide =
+        cursorMode === "Off at All Times" ||
+        (cursorMode === "Off When Using a Controller" && usingController);
+      document.body.classList.toggle("cursor-hidden", shouldHide);
+    };
+    apply();
+    window.addEventListener("focus", apply);
     return () => {
+      window.removeEventListener("focus", apply);
       document.body.classList.remove("cursor-hidden");
     };
   }, [cursorMode, mode]);

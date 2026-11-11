@@ -68,8 +68,9 @@ body,
   background: var(--bg);
   color: var(--fg);
   font-family: system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
 }
-
 body.cursor-hidden,
 body.cursor-hidden * {
   cursor: none !important;
