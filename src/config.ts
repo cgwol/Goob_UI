@@ -77,6 +77,7 @@ async function persist() {
   await invoke("save_config", { contents: JSON.stringify(config, null, 2) });
 }
 
+/** Load the config file, or migrate from localStorage if it does not exist yet. */
 export async function initConfig() {
   if (ready) return config;
   try {

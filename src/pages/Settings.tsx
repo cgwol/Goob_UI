@@ -13,6 +13,7 @@ import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { SideMenu } from "../components/SideMenu";
+import { saveGames, saveApps } from "../config";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad, setPadChoice, type PadChoice } from "../input-mode";
 import { play } from "../sound";
@@ -153,6 +154,8 @@ export function Settings() {
   const clearLibrary = async () => {
     localStorage.removeItem("games");
     localStorage.removeItem("apps");
+    await saveGames([]);
+    await saveApps([]);
     await invoke("clear_tiles").catch((err) => console.error(err));
     setConfirm(false);
   };

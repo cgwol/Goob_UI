@@ -17,6 +17,7 @@ import { useInputMode, getPad } from "../input-mode";
 import { getDeadzone } from "../settings";
 import { play } from "../sound";
 import { addRunning, processNameFromPath } from "../running-apps";
+import { getConfig, saveApps } from "../config";
 
 type AppItem = { id: string; name: string; path: string; image?: string; lastPlayed?: number };
 
@@ -24,8 +25,8 @@ const KEY = "apps";
 
 function loadApps(): AppItem[] {
   try {
-    const list: AppItem[] = JSON.parse(localStorage.getItem(KEY) ?? "[]");
-    return list.sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0));
+    const list = getConfig().apps as AppItem[];
+    return [...list].sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0));
   } catch {
     return [];
   }
@@ -77,9 +78,9 @@ export function Apps() {
   addOpenRef.current = addOpen;
   const rowRef = useRef<HTMLDivElement>(null);
 
-  // Persist the library whenever it changes
+  // Persist the library to the local config file whenever it changes
   useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify(apps));
+    void saveApps(apps);
   }, [apps]);
 
   // One-time migration: any old base64 images stored in localStorage are written to disk

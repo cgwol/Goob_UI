@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-dialog";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { addRunning, processNameFromPath } from "../running-apps";
+import { getConfig, saveGames } from "../config";
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
@@ -25,8 +26,8 @@ const KEY = "games";
 
 function loadGames(): Game[] {
   try {
-    const list: Game[] = JSON.parse(localStorage.getItem(KEY) ?? "[]");
-    return list.sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0));
+    const list = getConfig().games as Game[];
+    return [...list].sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0));
   } catch {
     return [];
   }
@@ -84,9 +85,9 @@ export function Games() {
   steamRef.current = steamGames;
   const rowRef = useRef<HTMLDivElement>(null);
 
-  // Persist the library whenever it changes
+  // Persist the library to the local config file whenever it changes
   useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify(games));
+    void saveGames(games);
   }, [games]);
 
   // One-time migration: any old base64 images stored in localStorage are written to disk

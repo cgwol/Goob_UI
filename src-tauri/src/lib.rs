@@ -519,6 +519,8 @@ pub fn run() {
             save_data_url,
             delete_tile_image,
             clear_tiles,
+            load_config,
+            save_config,
             is_process_running,
             focus_window,
             close_window,

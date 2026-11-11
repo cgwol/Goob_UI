@@ -16,8 +16,9 @@ import { setInputMode, useInputMode, getPad } from "./input-mode";
 import { Games } from "./pages/Games";
 import { Apps } from "./pages/Apps";
 import { Settings } from "./pages/Settings";
-import { getDeadzone, useCursorMode, applyWindowMode, getWindowMode } from "./settings";
+import { getDeadzone, useCursorMode, applyWindowMode, getWindowMode, applyConfigSettings } from "./settings";
 import { useSystemSounds } from "./sound";
+import { initConfig } from "./config";
 
 const TILES = ["Games", "Apps", "Settings"];
 
@@ -269,9 +270,16 @@ function Home() {
 export default function App() {
   useInputTracker();
   useSystemSounds();
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    void applyWindowMode(getWindowMode());
+    void (async () => {
+      await initConfig();
+      applyConfigSettings();
+      void applyWindowMode(getWindowMode());
+      setReady(true);
+    })();
   }, []);
+  if (!ready) return null;
   return (
     <Routes>
       <Route path="/" element={<Home />} />

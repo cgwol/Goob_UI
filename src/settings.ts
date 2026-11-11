@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
+import { getConfig, saveSettings, onConfig } from "./config";
 
 export type Sensitivity = "Low" | "Medium" | "High";
 export type Theme = "Dark" | "Light" | "Forest" | "Ocean" | "Black" | "Goobing";
@@ -48,6 +49,22 @@ function loadTheme(): Theme {
 function emit() {
   listeners.forEach((fn) => fn());
 }
+
+/** Pull settings out of the local config file (called after it loads). */
+export function applyConfigSettings() {
+  const s = getConfig().settings;
+  if (s.sensitivity === "Low" || s.sensitivity === "Medium" || s.sensitivity === "High") {
+    sensitivity = s.sensitivity;
+  }
+  if (THEMES.includes(s.theme as Theme)) theme = s.theme as Theme;
+  if (VOLUMES.includes(s.volume as Volume)) volume = s.volume as Volume;
+  if (WINDOW_MODES.includes(s.windowMode as WindowMode)) windowMode = s.windowMode as WindowMode;
+  if (CURSOR_MODES.includes(s.cursorMode as CursorMode)) cursorMode = s.cursorMode as CursorMode;
+  applyTheme();
+  emit();
+}
+
+onConfig(applyConfigSettings);
 
 // Apply the current theme by setting a CSS class on the document element
 function applyTheme() {
@@ -97,6 +114,7 @@ export function setSensitivity(next: Sensitivity) {
   sensitivity = next;
   localStorage.setItem(KEY, sensitivity);
   emit();
+  void saveSettings({ sensitivity: next });
 }
 
 export function setTheme(next: Theme) {
@@ -104,6 +122,7 @@ export function setTheme(next: Theme) {
   localStorage.setItem(THEME_KEY, theme);
   applyTheme();
   emit();
+  void saveSettings({ theme: next });
 }
 
 function loadVolume(): Volume {
@@ -119,6 +138,7 @@ export function setVolume(next: Volume) {
   volume = next;
   localStorage.setItem(VOLUME_KEY, volume);
   emit();
+  void saveSettings({ volume: next });
 }
 
 export function useVolume() {
@@ -203,6 +223,7 @@ export async function setWindowMode(next: WindowMode) {
   windowMode = next;
   localStorage.setItem(WINDOW_KEY, next);
   emit();
+  void saveSettings({ windowMode: next });
   await applyWindowMode(next);
 }
 
@@ -236,6 +257,7 @@ export function setCursorMode(next: CursorMode) {
   cursorMode = next;
   localStorage.setItem(CURSOR_KEY, next);
   emit();
+  void saveSettings({ cursorMode: next });
 }
 
 export function useCursorMode() {
