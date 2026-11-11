@@ -1,7 +1,7 @@
 /**
  * Settings page for Goob UI.
  * Lists every user-configurable option (startup, sensitivity, controller legend,
- * hide cursor, theme, volume, window mode, resolution, and Clear Library).
+ * hide cursor, theme, volume, window mode, and Clear Library).
  * Most options open a dropdown; Clear Library opens a confirmation popup.
  * Changes are applied immediately through the settings module and persisted to localStorage.
  * Full keyboard and gamepad support with hold-to-repeat navigation.
@@ -20,19 +20,16 @@ import {
   useTheme,
   useVolume,
   useWindowMode,
-  useResolution,
   useCursorMode,
   setSensitivity,
   setTheme,
   setVolume,
   setWindowMode,
-  setResolution,
   setCursorMode,
   type Sensitivity,
   type Theme,
   type Volume,
   type WindowMode,
-  type Resolution,
   type CursorMode,
 } from "../settings";
 
@@ -44,7 +41,6 @@ const ITEMS = [
   "Theme",
   "System volume",
   "Window mode",
-  "Resolution",
   "Clear Library",
 ] as const;
 const SENS: Sensitivity[] = ["Low", "Medium", "High"];
@@ -52,14 +48,13 @@ const LEGENDS: PadChoice[] = ["auto detection", "playstation", "xbox", "nintendo
 const THEMES: Theme[] = ["Dark", "Light", "Forest", "Ocean", "Black"];
 const VOLUMES: Volume[] = ["Off", "Low", "Medium", "High"];
 const WINDOWS: WindowMode[] = ["Windowed fullscreen", "Fullscreen", "Windowed"];
-const RESOLUTIONS: Resolution[] = ["720p", "1080p", "1440p", "4K"];
 const CURSORS: CursorMode[] = [
   "Off at All Times",
   "Off When Using a Controller",
   "On At All Times",
 ];
 
-type Drop = "sens" | "legend" | "theme" | "volume" | "window" | "resolution" | "cursor" | null;
+type Drop = "sens" | "legend" | "theme" | "volume" | "window" | "cursor" | null;
 
 function legendLabel(value: PadChoice) {
   return value === "auto detection" ? "Auto" : value[0].toUpperCase() + value.slice(1);
@@ -76,7 +71,6 @@ export function Settings() {
   const theme = useTheme();
   const volume = useVolume();
   const windowMode = useWindowMode();
-  const resolution = useResolution();
   const cursorMode = useCursorMode();
 
   const [focused, setFocused] = useState(0);
@@ -126,7 +120,6 @@ export function Settings() {
     if (dropRef.current === "theme") return THEMES;
     if (dropRef.current === "volume") return VOLUMES;
     if (dropRef.current === "window") return WINDOWS;
-    if (dropRef.current === "resolution") return RESOLUTIONS;
     if (dropRef.current === "cursor") return CURSORS;
     return [];
   };
@@ -143,9 +136,7 @@ export function Settings() {
               ? VOLUMES
               : kind === "window"
                 ? WINDOWS
-                : kind === "cursor"
-                  ? CURSORS
-                  : RESOLUTIONS;
+                : CURSORS;
     const current =
       kind === "sens"
         ? sensitivity
@@ -157,9 +148,7 @@ export function Settings() {
               ? volume
               : kind === "window"
                 ? windowMode
-                : kind === "cursor"
-                  ? cursorMode
-                  : resolution;
+                : cursorMode;
     setDropFocus(Math.max(0, list.indexOf(current as never)));
     setDrop(kind);
   };
@@ -175,7 +164,6 @@ export function Settings() {
       play("select");
     }
     if (dropRef.current === "window") void setWindowMode(chosen as WindowMode);
-    if (dropRef.current === "resolution") setResolution(chosen as Resolution);
     if (dropRef.current === "cursor") setCursorMode(chosen as CursorMode);
     setDrop(null);
   };
@@ -189,7 +177,6 @@ export function Settings() {
     if (item === "Theme") openDrop("theme");
     if (item === "System volume") openDrop("volume");
     if (item === "Window mode") openDrop("window");
-    if (item === "Resolution") openDrop("resolution");
     if (item === "Clear Library") setConfirm(true);
   };
 
@@ -200,7 +187,6 @@ export function Settings() {
     if (label === "Theme") return theme;
     if (label === "System volume") return volume;
     if (label === "Window mode") return windowMode;
-    if (label === "Resolution") return resolution;
     if (label === "Clear Library") return "";
     return legendLabel(padChoice);
   };
@@ -322,7 +308,7 @@ export function Settings() {
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKey);
     };
-  }, [navigate, startup, sensitivity, theme, padChoice, volume, windowMode, resolution, cursorMode]);
+  }, [navigate, startup, sensitivity, theme, padChoice, volume, windowMode, cursorMode]);
 
   const backIcon =
     mode === "keyboard" ? "⌫" : mode === "gamepad" && padKind === "playstation" ? "○" : mode === "gamepad" ? "B" : "";
@@ -340,11 +326,9 @@ export function Settings() {
             ? VOLUMES
             : drop === "window"
               ? WINDOWS
-              : drop === "resolution"
-                ? RESOLUTIONS
-                : drop === "cursor"
-                  ? CURSORS
-                  : [];
+              : drop === "cursor"
+                ? CURSORS
+                : [];
 
   return (
     <div className="shell">
@@ -374,7 +358,6 @@ export function Settings() {
                 if (label === "Theme") openDrop("theme");
                 if (label === "System volume") openDrop("volume");
                 if (label === "Window mode") openDrop("window");
-                if (label === "Resolution") openDrop("resolution");
                 if (label === "Clear Library") setConfirm(true);
               }}
             >
@@ -386,8 +369,7 @@ export function Settings() {
               (label === "Hide Cursor" && drop === "cursor") ||
               (label === "Theme" && drop === "theme") ||
               (label === "System volume" && drop === "volume") ||
-              (label === "Window mode" && drop === "window") ||
-              (label === "Resolution" && drop === "resolution")) && (
+              (label === "Window mode" && drop === "window")) && (
                 <div className="dropdown">
                   {dropList.map((option, n) => (
                     <button
@@ -406,7 +388,6 @@ export function Settings() {
                           play("select");
                         }
                         if (drop === "window") void setWindowMode(option as WindowMode);
-                        if (drop === "resolution") setResolution(option as Resolution);
                         setDrop(null);
                       }}
                     >

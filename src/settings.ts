@@ -1,16 +1,17 @@
 /**
  * Central settings store for Goob UI.
- * Manages sensitivity (deadzone), theme, system volume, window mode, and resolution.
+ * Manages sensitivity (deadzone), theme, system volume, and window mode.
  * All values are persisted to localStorage. Theme is applied by setting a class on <html>.
- * Window mode and resolution are stored only for now — applying them is handled separately.
+ * Window mode controls the window: fullscreen, borderless cover, or a normal window.
  */
 import { useEffect, useState } from "react";
+import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
+import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 
 export type Sensitivity = "Low" | "Medium" | "High";
 export type Theme = "Dark" | "Light" | "Forest" | "Ocean" | "Black";
 export type Volume = "Off" | "Low" | "Medium" | "High";
 export type WindowMode = "Windowed fullscreen" | "Fullscreen" | "Windowed";
-export type Resolution = "720p" | "1080p" | "1440p" | "4K";
 export type CursorMode = "Off at All Times" | "Off When Using a Controller" | "On At All Times";
 
 const KEY = "sensitivity";
@@ -20,8 +21,6 @@ const VOLUME_KEY = "volume";
 const VOLUMES: Volume[] = ["Off", "Low", "Medium", "High"];
 const WINDOW_KEY = "window-mode";
 const WINDOW_MODES: WindowMode[] = ["Windowed fullscreen", "Fullscreen", "Windowed"];
-const RES_KEY = "resolution";
-const RESOLUTIONS: Resolution[] = ["720p", "1080p", "1440p", "4K"];
 const CURSOR_KEY = "cursor-mode";
 const CURSOR_MODES: CursorMode[] = [
   "Off at All Times",
@@ -34,7 +33,6 @@ let theme: Theme = loadTheme();
 const listeners = new Set<() => void>();
 let volume: Volume = loadVolume();
 let windowMode: WindowMode = loadWindow();
-let resolution: Resolution = loadResolution();
 let cursorMode: CursorMode = loadCursorMode();
 
 function load(): Sensitivity {
@@ -45,11 +43,6 @@ function load(): Sensitivity {
 function loadTheme(): Theme {
   const saved = localStorage.getItem(THEME_KEY);
   return THEMES.includes(saved as Theme) ? (saved as Theme) : "Dark";
-}
-
-function loadResolution(): Resolution {
-  const saved = localStorage.getItem(RES_KEY);
-  return RESOLUTIONS.includes(saved as Resolution) ? (saved as Resolution) : "720p";
 }
 
 function emit() {
@@ -157,32 +150,58 @@ export function getWindowMode() {
   return windowMode;
 }
 
-export function getResolution() {
-  return resolution;
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function setResolution(next: Resolution) {
-  resolution = next;
-  localStorage.setItem(RES_KEY, next);
-  emit();
+/**
+ * Apply the current window mode.
+ * Fullscreen: native fullscreen.
+ * Windowed fullscreen: borderless window covering the monitor.
+ * Windowed: decorated, resizable 1280×720 window, centered.
+ */
+export async function applyWindowMode(mode: WindowMode) {
+  const win = getCurrentWindow();
+  const monitor = await currentMonitor();
+
+  if (mode === "Fullscreen") {
+    await win.setAlwaysOnTop(false);
+    await win.setDecorations(false);
+    await win.setFullscreen(true);
+    return;
+  }
+
+  await win.setFullscreen(false);
+  await wait(60);
+
+  if (mode === "Windowed fullscreen") {
+    await win.setAlwaysOnTop(false);
+    await win.setDecorations(false);
+    await win.setResizable(false);
+    await win.setShadow(false).catch(() => {});
+    await win.unmaximize();
+    if (monitor) {
+      await win.setPosition(new PhysicalPosition(monitor.position.x, monitor.position.y));
+      await win.setSize(new PhysicalSize(monitor.size.width, monitor.size.height));
+    }
+    return;
+  }
+
+  // Windowed: a normal window, centered
+  await win.setAlwaysOnTop(false);
+  await win.setDecorations(true);
+  await win.setResizable(true);
+  await win.setShadow(true).catch(() => {});
+  await win.unmaximize();
+  await win.setSize(new PhysicalSize(1280, 720));
+  await win.center();
 }
 
-export function useResolution() {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const update = () => setTick((n) => n + 1);
-    listeners.add(update);
-    return () => {
-      listeners.delete(update);
-    };
-  }, []);
-  return resolution;
-}
-
-export function setWindowMode(next: WindowMode) {
+export async function setWindowMode(next: WindowMode) {
   windowMode = next;
   localStorage.setItem(WINDOW_KEY, next);
   emit();
+  await applyWindowMode(next);
 }
 
 export function useWindowMode() {
