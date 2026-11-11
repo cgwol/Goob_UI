@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Goob UI",
-  "version": "0.1.0",
-  "identifier": "com.christian.goob-ui",
+  "version": "1.1.0",
+  "identifier": "com.cgwol.goob-ui",
   "build": {
     "beforeDevCommand": "npm run dev:vite",
     "devUrl": "http://localhost:1420",
