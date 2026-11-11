@@ -6,11 +6,13 @@
  * Full keyboard and gamepad navigation with hold-to-repeat. Triangle / K opens the
  * per-tile menu. Circle / Backspace returns to the home screen.
  */
+import goobIcon from '../assets/32x32.png'
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-dialog";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { addRunning, processNameFromPath } from "../running-apps";
+import { getConfig, saveGames, saveSteamLibraries } from "../config";
 import { SideMenu } from "../components/SideMenu";
 import { Popup } from "../components/PromptMenu";
 import { useInputMode, getPad } from "../input-mode";
@@ -20,12 +22,12 @@ import { play } from "../sound";
 type Game = { id: string; name: string; path: string; steamId?: string; image?: string; lastPlayed?: number };
 type SteamGame = { app_id: string; name: string };
 
-const KEY = "games";
+// const KEY = "games";
 
 function loadGames(): Game[] {
   try {
-    const list: Game[] = JSON.parse(localStorage.getItem(KEY) ?? "[]");
-    return list.sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0));
+    const list = getConfig().games as Game[];
+    return [...list].sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0));
   } catch {
     return [];
   }
@@ -83,9 +85,9 @@ export function Games() {
   steamRef.current = steamGames;
   const rowRef = useRef<HTMLDivElement>(null);
 
-  // Persist the library whenever it changes
+  // Persist the library to the local config file whenever it changes
   useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify(games));
+    void saveGames(games);
   }, [games]);
 
   // One-time migration: any old base64 images stored in localStorage are written to disk
@@ -183,10 +185,23 @@ export function Games() {
   const openSteam = async () => {
     setAddOpen(false);
     try {
-      const list = await invoke<SteamGame[]>("list_steam_games");
-      setSteamGames(list);
+      const cached = getConfig().steamLibraries ?? [];
+      const result = await invoke<{ games: SteamGame[]; libraries: string[] }>(
+        "list_steam_games",
+        { cached },
+      );
+      const games = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.games)
+          ? result.games
+          : [];
+      const libraries = Array.isArray(result?.libraries) ? result.libraries : [];
+      if (libraries.length && libraries.join() !== cached.join()) {
+        void saveSteamLibraries(libraries);
+      }
+      setSteamGames(games);
     } catch (err) {
-      console.error(err);
+      console.error("list_steam_games failed", err);
       setSteamGames([]);
     }
   };
@@ -434,6 +449,7 @@ export function Games() {
     <div className="shell">
       <header className="topbar">
         <span className="brand" onClick={() => setMenuOpen(true)}>
+          <img className="brand-icon" src={goobIcon} alt="" />
           {menuIcon && <span className="keycap">{menuIcon}</span>}
           Games
         </span>

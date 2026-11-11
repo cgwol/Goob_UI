@@ -141,7 +141,7 @@ if not exist "%PROFILE%" mkdir "%PROFILE%"
 
 ### Launch Batch File Example with Autohotkey for cursor hiding (Optional)
 
-Use an AutoHotkey v1 script (```CursorHide.ahk``) that:
+Use an AutoHotkey v1 script (```CursorHide.ahk```) that:
 
 - Hides the system cursor when the batch starts
 - Shows the cursor immediately on mouse movement
@@ -150,7 +150,7 @@ Use an AutoHotkey v1 script (```CursorHide.ahk``) that:
 
 This gives a clean console-style experience while still allowing mouse use when needed.
 
-** Autohotkey File (```CursorHide.ahk```)**
+### Autohotkey File (```CursorHide.ahk```)
 
 ```
 ; AutoHotkey v1 script
@@ -288,17 +288,30 @@ del "%TEMP%\cursor_hide.lock"
 
 ### Goob UI Apps Page ![Apps](/src/assets/AppsRM.png)
 
+# Version 1.1.1 Changelog
+
+- New **Goobing** theme
+- Removed Resolution from settings
+- Proper Windowed Modes
+- Added local config file 
+- Added Goob icon to title bar and side menu
+- Optional USer version control on setting page
+- Tiles now scale with window size
+- Local Steam path saved to config file to speed up fetching games
+
 ## Current Known Issues
 
-1. Production builds getting game through steam can be slow.
-2. Proper Windowed Mode and Windows Fullscreen support that doesnt rely on user settings resolution
-3. Cursor issues when tabbing back into app.  
+- ~~Production builds getting game through steam can be slow. (Config file should fix this)~~
+- ~~Proper Windowed Mode and Windows Fullscreen support that doesnt rely on user settings resolution~~
+- ~~Cursor issues when tabbing back into app.~~ 
+- Cursor appears and stays when clicking on when controller mode is on
 
 ## Features to be added in future versions
 
-1. Local config file
-2. Sleep Screen
-3. In app/gmae home button support
+- ~~Local config file~~
+- Sleep Screen
+- In app/game home button support
+- Games/Apps pages will show curerntly running game/apps
 
 ## How to Run the Dev Environment
 

@@ -8,6 +8,7 @@
  * The Home screen is a simple horizontal tile row that navigates to the three main sections.
  */
 import "./App.css";
+import goobIcon from './assets/32x32.png'
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { SideMenu } from "./components/SideMenu";
@@ -15,14 +16,15 @@ import { setInputMode, useInputMode, getPad } from "./input-mode";
 import { Games } from "./pages/Games";
 import { Apps } from "./pages/Apps";
 import { Settings } from "./pages/Settings";
-import { getDeadzone, useCursorMode, applyWindowMode, getWindowMode } from "./settings";
+import { getDeadzone, useCursorMode, applyWindowMode, getWindowMode, applyConfigSettings } from "./settings";
 import { useSystemSounds } from "./sound";
+import { initConfig } from "./config";
 
 const TILES = ["Games", "Apps", "Settings"];
 
 /**
  * Tracks whether the user is driving the UI with keyboard, mouse, or gamepad
- * so button legends can update. Does not hide the cursor.
+ * so button legends can update, and hides the cursor based on the setting.
  */
 function useInputTracker() {
   const cursorMode = useCursorMode();
@@ -32,11 +34,20 @@ function useInputTracker() {
     const onKey = () => setInputMode("keyboard");
     const onMouse = (e: MouseEvent) => {
       if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) {
+        // A click/move to focus the window should not bring the cursor back
+        // while a controller is connected.
+        if (getPad()) return;
         setInputMode("mouse");
       }
     };
-    const onMouseDown = () => setInputMode("mouse");
-    const onWheel = () => setInputMode("mouse");
+    const onMouseDown = () => {
+      if (getPad()) return;
+      setInputMode("mouse");
+    };
+    const onWheel = () => {
+      if (getPad()) return;
+      setInputMode("mouse");
+    };
 
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousemove", onMouse);
@@ -75,13 +86,19 @@ function useInputTracker() {
     };
   }, []);
 
-  // Hide/show cursor based on the setting and current input mode
+  // Hide while a controller is connected, even after a click that focuses the window.
   useEffect(() => {
-    const shouldHide =
-      cursorMode === "Off at All Times" ||
-      (cursorMode === "Off When Using a Controller" && mode === "gamepad");
-    document.body.classList.toggle("cursor-hidden", shouldHide);
+    const apply = () => {
+      const usingController = mode === "gamepad" || !!getPad();
+      const shouldHide =
+        cursorMode === "Off at All Times" ||
+        (cursorMode === "Off When Using a Controller" && usingController);
+      document.body.classList.toggle("cursor-hidden", shouldHide);
+    };
+    apply();
+    window.addEventListener("focus", apply);
     return () => {
+      window.removeEventListener("focus", apply);
       document.body.classList.remove("cursor-hidden");
     };
   }, [cursorMode, mode]);
@@ -221,6 +238,7 @@ function Home() {
     <div className="shell">
       <header className="topbar">
         <span className="brand" onClick={() => setMenuOpen(true)}>
+          <img className="brand-icon" src={goobIcon} alt="" />
           {menuIcon && <span className="keycap">{menuIcon}</span>}
           Home
         </span>
@@ -252,9 +270,16 @@ function Home() {
 export default function App() {
   useInputTracker();
   useSystemSounds();
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    void applyWindowMode(getWindowMode());
+    void (async () => {
+      await initConfig();
+      applyConfigSettings();
+      void applyWindowMode(getWindowMode());
+      setReady(true);
+    })();
   }, []);
+  if (!ready) return null;
   return (
     <Routes>
       <Route path="/" element={<Home />} />

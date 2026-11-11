@@ -59,6 +59,18 @@
   --line: #2a2a2a;
 }
 
+.theme-goobing {
+  --bg: #251f31;
+  --fg: #f6f2f8;
+  --muted: #a396aa;
+  --surface: #17141c;
+  --surface-2: #241e2c;
+  --accent: #00d6e8;
+  --popup: #110e16;
+  --input: #0c0a10;
+  --line: #332a3c;
+}
+
 html,
 body,
 #root {
@@ -68,8 +80,9 @@ body,
   background: var(--bg);
   color: var(--fg);
   font-family: system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
 }
-
 body.cursor-hidden,
 body.cursor-hidden * {
   cursor: none !important;
@@ -119,14 +132,15 @@ body.cursor-hidden * {
 .tile-wrap {
   display: flex;
   flex-direction: column;
-  gap: 0.6vw;
-  width: 10vw;
+  gap: 8px;
+  width: max(180px, 10vw);
+  container-type: inline-size;
 }
 
 .tile-wrap,
 .row > .tile {
-  flex: 0 0 10vw;
-  width: 10vw;
+  flex: 0 0 max(180px, 10vw);
+  width: max(180px, 10vw);
 }
 
 .row > .tile {
@@ -135,17 +149,18 @@ body.cursor-hidden * {
 
 .tile-title {
   width: 100%;
-  height: 2.4vw;
+  height: 20cqw;
+  min-height: 36px;
   box-sizing: border-box;
-  border-radius: 0.7vw;
+  border-radius: 10px;
   background: var(--surface);
   color: var(--fg);
   display: block;
   overflow: hidden;
-  padding: 0 0.5vw;
-  font-size: 0.9vw;
+  padding: 0 8px;
+  font-size: 8.5cqw;
   font-weight: 600;
-  line-height: 2.4vw;
+  line-height: 20cqw;
   text-align: left;
   white-space: nowrap;
 }
@@ -175,14 +190,14 @@ body.cursor-hidden * {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 10vw;
+  width: max(180px, 10vw);
   aspect-ratio: 2 / 3;
   height: auto;
   border: none;
-  border-radius: 0.9vw;
+  border-radius: 14px;
   background: var(--surface);
   color: var(--fg);
-  font-size: 1vw;
+  font-size: max(16px, 1vw);
   font-weight: 600;
   text-align: center;
   cursor: pointer;
@@ -466,4 +481,49 @@ body.cursor-hidden * {
 .dropdown-item.focused {
   background: var(--surface-2);
   box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.version-box {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.version-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.update-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.45rem 0.9rem;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  margin-right: 0.6rem;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.menu-title {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.menu-logo {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
 }
