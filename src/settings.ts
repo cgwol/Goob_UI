@@ -1,9 +1,8 @@
 /**
  * Central settings store for Goob UI.
- * Manages sensitivity (deadzone), theme, system volume, window mode, and resolution.
+ * Manages sensitivity (deadzone), theme, system volume, and window mode.
  * All values are persisted to localStorage. Theme is applied by setting a class on <html>.
- * Window mode and resolution are applied through Tauri window APIs, with special handling
- * for "Windowed fullscreen" (borderless cover of the monitor when the chosen resolution fills it).
+ * Window mode controls the window: fullscreen, borderless cover, or a normal window.
  */
 import { useEffect, useState } from "react";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
@@ -13,7 +12,6 @@ export type Sensitivity = "Low" | "Medium" | "High";
 export type Theme = "Dark" | "Light" | "Forest" | "Ocean" | "Black";
 export type Volume = "Off" | "Low" | "Medium" | "High";
 export type WindowMode = "Windowed fullscreen" | "Fullscreen" | "Windowed";
-export type Resolution = "720p" | "1080p" | "1440p" | "4K";
 export type CursorMode = "Off at All Times" | "Off When Using a Controller" | "On At All Times";
 
 const KEY = "sensitivity";
@@ -23,14 +21,6 @@ const VOLUME_KEY = "volume";
 const VOLUMES: Volume[] = ["Off", "Low", "Medium", "High"];
 const WINDOW_KEY = "window-mode";
 const WINDOW_MODES: WindowMode[] = ["Windowed fullscreen", "Fullscreen", "Windowed"];
-const RES_KEY = "resolution";
-const RESOLUTIONS: Resolution[] = ["720p", "1080p", "1440p", "4K"];
-const RES_SIZE: Record<Resolution, { width: number; height: number }> = {
-  "720p": { width: 1280, height: 720 },
-  "1080p": { width: 1920, height: 1080 },
-  "1440p": { width: 2560, height: 1440 },
-  "4K": { width: 3840, height: 2160 },
-};
 const CURSOR_KEY = "cursor-mode";
 const CURSOR_MODES: CursorMode[] = [
   "Off at All Times",
@@ -43,7 +33,6 @@ let theme: Theme = loadTheme();
 const listeners = new Set<() => void>();
 let volume: Volume = loadVolume();
 let windowMode: WindowMode = loadWindow();
-let resolution: Resolution = loadResolution();
 let cursorMode: CursorMode = loadCursorMode();
 
 function load(): Sensitivity {
@@ -56,11 +45,6 @@ function loadTheme(): Theme {
   return THEMES.includes(saved as Theme) ? (saved as Theme) : "Dark";
 }
 
-function loadResolution(): Resolution {
-  const saved = localStorage.getItem(RES_KEY);
-  return RESOLUTIONS.includes(saved as Resolution) ? (saved as Resolution) : "720p";
-}
-
 function emit() {
   listeners.forEach((fn) => fn());
 }
@@ -68,10 +52,6 @@ function emit() {
 // Apply the current theme by setting a CSS class on the document element
 function applyTheme() {
   document.documentElement.className = `theme-${theme.toLowerCase()}`;
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function getSensitivity() {
@@ -170,100 +150,19 @@ export function getWindowMode() {
   return windowMode;
 }
 
-export function getResolution() {
-  return resolution;
-}
-
-export function setResolution(next: Resolution) {
-  resolution = next;
-  localStorage.setItem(RES_KEY, next);
-  emit();
-  if (windowMode !== "Fullscreen") void applyWindowMode(windowMode);
-}
-
-export function useResolution() {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const update = () => setTick((n) => n + 1);
-    listeners.add(update);
-    return () => {
-      listeners.delete(update);
-    };
-  }, []);
-  return resolution;
-}
-
-// Decide the target pixel size for the chosen resolution, clamped to the monitor.
-// 'fills' is true when the chosen resolution essentially covers the whole monitor.
-function targetSize(monitor?: { size: { width: number; height: number } } | null) {
-  const picked = RES_SIZE[resolution];
-  if (!monitor) return { ...picked, fills: false };
-  const width = Math.min(picked.width, monitor.size.width);
-  const height = Math.min(picked.height, monitor.size.height);
-  const fills = width >= monitor.size.width - 8 && height >= monitor.size.height - 8;
-  return { width, height, fills };
-}
-
-// Borderless window that completely covers the current monitor (slightly oversized to hide edges)
-async function coverMonitor() {
-  const win = getCurrentWindow();
-  const monitor = await currentMonitor();
-  if (!monitor) return;
-
-  const pad = Math.round(8 * monitor.scaleFactor);
-  await win.setDecorations(false);
-  await win.setShadow(false).catch(() => {});
-  await win.setResizable(false);
-  await win.unmaximize();
-  await wait(80);
-
-  const pos = new PhysicalPosition(monitor.position.x - pad, monitor.position.y - pad);
-  const size = new PhysicalSize(monitor.size.width + pad * 2, monitor.size.height + pad * 2);
-
-  await win.setAlwaysOnTop(true);
-  await win.setPosition(pos);
-  await win.setSize(size);
-  await wait(50);
-  await win.setPosition(pos);
-  await win.setSize(size);
-}
-
-// Place a sized window (decorated or borderless) centered on the monitor
-async function placeSized(decorated: boolean) {
-  const win = getCurrentWindow();
-  const monitor = await currentMonitor();
-  const { width, height } = targetSize(monitor);
-
-  await win.setAlwaysOnTop(false);
-  await win.unmaximize();
-  await win.setDecorations(decorated);
-  await win.setShadow(decorated).catch(() => {});
-  await win.setResizable(decorated);
-  await wait(80);
-  await win.setSize(new PhysicalSize(width, height));
-  await wait(80);
-
-  if (!monitor) {
-    await win.center();
-    return;
-  }
-
-  const outer = await win.outerSize().catch(() => null);
-  const w = outer?.width ?? width;
-  const h = outer?.height ?? height;
-  const x = monitor.position.x + (monitor.size.width - w) / 2;
-  const y = monitor.position.y + (monitor.size.height - h) / 2;
-  await win.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * Apply the requested window mode using Tauri window APIs.
- * Fullscreen uses the native fullscreen flag.
- * Windowed fullscreen covers the monitor when the resolution fills it, otherwise centers a borderless window.
- * Windowed is a normal decorated, resizable window of the chosen size.
+ * Apply the current window mode.
+ * Fullscreen: native fullscreen.
+ * Windowed fullscreen: borderless window covering the monitor.
+ * Windowed: decorated, resizable 1280×720 window, centered.
  */
 export async function applyWindowMode(mode: WindowMode) {
   const win = getCurrentWindow();
+  const monitor = await currentMonitor();
 
   if (mode === "Fullscreen") {
     await win.setAlwaysOnTop(false);
@@ -273,19 +172,31 @@ export async function applyWindowMode(mode: WindowMode) {
   }
 
   await win.setFullscreen(false);
-  await wait(80);
+  await wait(60);
 
   if (mode === "Windowed fullscreen") {
-    const monitor = await currentMonitor();
-    if (targetSize(monitor).fills) {
-      await coverMonitor();
-      return;
+    await win.setAlwaysOnTop(false);
+    await win.setDecorations(false);
+    await win.setResizable(false);
+    await win.setShadow(false).catch(() => { });
+    await win.unmaximize();
+    if (monitor) {
+      await win.setPosition(new PhysicalPosition(monitor.position.x, monitor.position.y));
+      await win.setSize(new PhysicalSize(monitor.size.width, monitor.size.height));
     }
-    await placeSized(false);
     return;
   }
 
-  await placeSized(true);
+  // Windowed: a normal window, centered
+  // Windowed: a normal window, centered, locked to 16:9
+  await win.setAlwaysOnTop(false);
+  await win.setDecorations(true);
+  await win.setResizable(true);
+  await win.setShadow(true).catch(() => { });
+  await win.unmaximize();
+  await win.setMinSize(new PhysicalSize(960, 540)).catch(() => { });
+  await win.setSize(new PhysicalSize(1280, 720));
+  await win.center();
 }
 
 export async function setWindowMode(next: WindowMode) {
@@ -309,20 +220,6 @@ export function useWindowMode() {
 
 // Apply theme immediately on module load
 applyTheme();
-
-// When the window regains focus in Windowed fullscreen mode and the resolution fills the monitor,
-// re-apply the cover so the window stays edge-to-edge after alt-tabbing.
-getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-  if (getWindowMode() !== "Windowed fullscreen") return;
-  if (!focused) {
-    void getCurrentWindow().setAlwaysOnTop(false);
-    return;
-  }
-  void (async () => {
-    const monitor = await currentMonitor();
-    if (targetSize(monitor).fills) await coverMonitor();
-  })();
-});
 
 function loadCursorMode(): CursorMode {
   const saved = localStorage.getItem(CURSOR_KEY);
