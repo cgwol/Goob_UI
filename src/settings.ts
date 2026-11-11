@@ -196,7 +196,6 @@ export async function applyWindowMode(mode: WindowMode) {
   await win.unmaximize();
   await win.setMinSize(new PhysicalSize(960, 540)).catch(() => { });
   await win.setSize(new PhysicalSize(1280, 720));
-  await win.setAspectRatio(16 / 9).catch(() => { });
   await win.center();
 }
 
