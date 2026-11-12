@@ -1,6 +1,6 @@
 # ![icon](/src/assets/32x32.png) Goob UI 
 
-**Version 1.1.1**
+**Version 1.1.2
 
 A modern, controller-first desktop interface built with **Tauri + React + TypeScript**.
 
@@ -288,16 +288,9 @@ del "%TEMP%\cursor_hide.lock"
 
 ### Goob UI Apps Page ![Apps](/src/assets/AppsRM.png)
 
-# Version 1.1.1 Changelog
+# Version 1.1.2 Changelog
 
-- New **Goobing** theme
-- Removed Resolution from settings
-- Proper Windowed Modes
-- Added local config file 
-- Added Goob icon to title bar and side menu
-- Optional USer version control on setting page
-- Tiles now scale with window size
-- Local Steam path saved to config file to speed up fetching games
+- Fixed Goob UI not being focused after app close
 
 ## Current Known Issues
 

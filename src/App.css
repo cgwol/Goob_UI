@@ -83,10 +83,16 @@ body,
   user-select: none;
   -webkit-user-select: none;
 }
-body.cursor-hidden,
-body.cursor-hidden * {
+
+/* html, body {
   cursor: none !important;
-}
+  pointer-events: none !important;
+
+
+/* body.cursor-hidden, body.cursor-hidden * {
+  cursor: none !important;
+  pointer-events: none !important;
+} */
 
 .shell {
   height: 100vh;
