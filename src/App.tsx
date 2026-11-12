@@ -97,28 +97,28 @@ function useInputTracker() {
   }, []);
 
   useEffect(() => {
-    const shouldHide =
-      cursorMode === "Off at All Times" ||
-      (cursorMode === "Off When Using a Controller" && mode === "gamepad");
+  const shouldHide =
+    cursorMode === "Off at All Times" ||
+    (cursorMode === "Off When Using a Controller" && mode === "gamepad");
 
-    const id = "goob-hide-cursor";
-    let style = document.getElementById(id) as HTMLStyleElement | null;
+  const id = "goob-hide-cursor";
+  let style = document.getElementById(id) as HTMLStyleElement | null;
 
-    if (shouldHide) {
-      if (!style) {
-        style = document.createElement("style");
-        style.id = id;
-        // Transparent 1x1 PNG custom cursor — works more reliably than cursor:none in Tauri/WebView2 on Windows
-        style.textContent =
-          "html, body, body * { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=') 0 0, none !important; }";
-        document.head.appendChild(style);
-      }
-    } else if (style) {
-      style.remove();
+  if (shouldHide) {
+    if (!style) {
+      style = document.createElement("style");
+      style.id = id;
+      style.textContent = "html, body * { cursor: none !important; pointer-events: none !important; }";
+      document.head.appendChild(style);
     }
+  } else if (style) {
+    style.remove();
+  }
 
-    return () => document.getElementById(id)?.remove();
-  }, [cursorMode, mode]);
+  return () => document.getElementById(id)?.remove();
+}, [cursorMode, mode]);
+
+  
 }
 
 /**
