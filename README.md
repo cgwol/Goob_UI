@@ -291,6 +291,7 @@ del "%TEMP%\cursor_hide.lock"
 # Version 1.1.2 Changelog
 
 - Fixed Goob UI not being focused after app close
+- Better cursor logic for hiding on Controller input mode
 
 ## Current Known Issues
 
