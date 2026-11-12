@@ -31,23 +31,30 @@ function useInputTracker() {
   const { mode } = useInputMode();
 
   useEffect(() => {
-    const onKey = () => setInputMode("keyboard");
+    // While this is recent, the controller poll must not steal the mode back.
+    let lastPointer = 0;
+    const notePointer = (next: "mouse" | "keyboard") => {
+      lastPointer = performance.now();
+      setInputMode(next);
+    };
+
+    const onKey = () => notePointer("keyboard");
+    // movementX is often 0 in the Tauri webview, so track the pointer position.
+    let lastX = -1;
+    let lastY = -1;
     const onMouse = (e: MouseEvent) => {
-      if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) {
-        // A click/move to focus the window should not bring the cursor back
-        // while a controller is connected.
-        if (getPad()) return;
-        setInputMode("mouse");
+      if (lastX < 0) {
+        lastX = e.clientX;
+        lastY = e.clientY;
+        return;
       }
+      const moved = Math.abs(e.clientX - lastX) + Math.abs(e.clientY - lastY);
+      lastX = e.clientX;
+      lastY = e.clientY;
+      if (moved > 2) notePointer("mouse");
     };
-    const onMouseDown = () => {
-      if (getPad()) return;
-      setInputMode("mouse");
-    };
-    const onWheel = () => {
-      if (getPad()) return;
-      setInputMode("mouse");
-    };
+    const onMouseDown = () => notePointer("mouse");
+    const onWheel = () => notePointer("mouse");
 
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousemove", onMouse);
@@ -56,21 +63,24 @@ function useInputTracker() {
 
     let alive = true;
     let raf = 0;
-    let prev = "";
+    let prevStick = false;
+    let prevPressed = false;
 
     const tick = () => {
       if (!alive) return;
       const pad = getPad();
-      if (pad) {
+      // Ignore the pad briefly after mouse or keyboard so it cannot override them.
+      if (pad && performance.now() - lastPointer > 300) {
         const x = pad.axes[0] ?? 0;
         const y = pad.axes[1] ?? 0;
         const stick = Math.abs(x) > 0.6 || Math.abs(y) > 0.6;
         const pressed = pad.buttons.some((b) => b.pressed);
-        const now = `${stick}:${pressed}`;
-        if (now !== prev && (stick || pressed)) {
+        // Only on a new press or a new stick deflection, not on jitter.
+        if ((stick && !prevStick) || (pressed && !prevPressed)) {
           setInputMode("gamepad", pad.id);
         }
-        prev = now;
+        prevStick = stick;
+        prevPressed = pressed;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -86,22 +96,29 @@ function useInputTracker() {
     };
   }, []);
 
-  // Hide while a controller is connected, even after a click that focuses the window.
   useEffect(() => {
-    const apply = () => {
-      const usingController = mode === "gamepad" || !!getPad();
-      const shouldHide =
-        cursorMode === "Off at All Times" ||
-        (cursorMode === "Off When Using a Controller" && usingController);
-      document.body.classList.toggle("cursor-hidden", shouldHide);
-    };
-    apply();
-    window.addEventListener("focus", apply);
-    return () => {
-      window.removeEventListener("focus", apply);
-      document.body.classList.remove("cursor-hidden");
-    };
-  }, [cursorMode, mode]);
+  const shouldHide =
+    cursorMode === "Off at All Times" ||
+    (cursorMode === "Off When Using a Controller" && mode === "gamepad");
+
+  const id = "goob-hide-cursor";
+  let style = document.getElementById(id) as HTMLStyleElement | null;
+
+  if (shouldHide) {
+    if (!style) {
+      style = document.createElement("style");
+      style.id = id;
+      style.textContent = "html, body * { cursor: none !important; pointer-events: none !important; }";
+      document.head.appendChild(style);
+    }
+  } else if (style) {
+    style.remove();
+  }
+
+  return () => document.getElementById(id)?.remove();
+}, [cursorMode, mode]);
+
+  
 }
 
 /**
