@@ -1,6 +1,6 @@
 [package]
 name = "goob_ui"
-version = "1.1.0"
+version = "1.1.2"
 description = "Goob UI - A console-style PC interface"
 authors = ["you"]
 edition = "2024"
