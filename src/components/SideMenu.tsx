@@ -409,8 +409,8 @@ export function SideMenu({
             {
               label: "Open",
               onSelect: () => {
-                const q = ctxFor.title || ctxFor.process_name;
-                invoke("focus_window", { query: q }).catch(console.error);
+                const q = ctxFor.process_name || ctxFor.title;
+                invoke("focus_window", { query: q });
                 setCtxFor(null);
                 onClose();
               },

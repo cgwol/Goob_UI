@@ -1,6 +1,6 @@
 # ![icon](/src/assets/32x32.png) Goob UI 
 
-**Version 1.1.2
+**Version 1.1.3
 
 A modern, controller-first desktop interface built with **Tauri + React + TypeScript**.
 
@@ -288,10 +288,9 @@ del "%TEMP%\cursor_hide.lock"
 
 ### Goob UI Apps Page ![Apps](/src/assets/AppsRM.png)
 
-# Version 1.1.2 Changelog
+# Version 1.1.3 Changelog
 
-- Fixed Goob UI not being focused after app close
-- Better cursor logic for hiding on Controller input mode
+- Fixed an issue where apps would open unfocused
 
 ## Current Known Issues
 
