@@ -64,7 +64,7 @@ type Drop = "sens" | "legend" | "theme" | "volume" | "window" | "cursor" | null;
 Update Every Version!
 
 */
-const APP_VERSION = "1.1.2";
+const APP_VERSION = "1.1.3";
 const RELEASES_API = "https://api.github.com/repos/cgwol/Goob_UI/releases/latest";
 
 function parseVersion(v: string): number[] {
