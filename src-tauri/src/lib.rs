@@ -113,7 +113,8 @@ fn launch_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     }
     cmd.spawn().map_err(|e| e.to_string())?;
 
-    // Focus the launched app after a short delay. Goob stays where it was.
+    // The other window often does not exist yet in a release build.
+    // Retry the focus so it comes in front of Goob once it does.
     let name = file
         .file_stem()
         .and_then(|s| s.to_str())
@@ -122,8 +123,10 @@ fn launch_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     if !name.is_empty() {
         let app2 = app.clone();
         std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(600));
-            let _ = focus_window(app2, name);
+            for delay in [400, 800, 1200, 2000, 3000] {
+                std::thread::sleep(std::time::Duration::from_millis(delay));
+                let _ = focus_window(app2.clone(), name.clone());
+            }
         });
     }
     Ok(())
@@ -149,17 +152,38 @@ fn is_process_running(name: String) -> Result<bool, String> {
 }
 
 /// Bring an existing window to the foreground by process name or title (Windows).
+/// AppActivate is not enough in a release build: Windows blocks it, and it only
+/// matches the window title. This finds the window by name or title and forces it
+/// in front with the topmost trick.
 #[tauri::command]
 fn focus_window(app: tauri::AppHandle, query: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let _ = app;
+        let q = query.replace('\'', "''");
         let script = format!(
             r#"
-            Add-Type -AssemblyName Microsoft.VisualBasic
-            $null = [Microsoft.VisualBasic.Interaction]::AppActivate('{}')
-            "#,
-            query.replace('\'', "''")
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class GoobFocus {{
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+}}
+"@
+$q = '{q}'
+$proc = Get-Process | Where-Object {{
+  $_.MainWindowHandle -ne 0 -and (
+    $_.ProcessName -like "*$q*" -or $_.MainWindowTitle -like "*$q*"
+  )
+}} | Select-Object -First 1
+if (-not $proc) {{ exit 1 }}
+$hwnd = $proc.MainWindowHandle
+[GoobFocus]::ShowWindow($hwnd, 9) | Out-Null
+# Force above Goob, then drop topmost so it does not stay pinned.
+[GoobFocus]::SetWindowPos($hwnd, [IntPtr](-1), 0, 0, 0, 0, 0x0043) | Out-Null
+[GoobFocus]::SetWindowPos($hwnd, [IntPtr](-2), 0, 0, 0, 0, 0x0043) | Out-Null
+"#
         );
         hidden_cmd("powershell")
             .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &script])
