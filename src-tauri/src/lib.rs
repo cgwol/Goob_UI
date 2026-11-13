@@ -113,22 +113,17 @@ fn launch_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     }
     cmd.spawn().map_err(|e| e.to_string())?;
 
-    // The other window often does not exist yet in a release build.
-    // Retry the focus so it comes in front of Goob once it does.
+    // One focus pass that retries inside itself. Overlapping calls were
+    // fighting each other and leaving Goob with the controller.
     let name = file
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("")
         .to_string();
-    if !name.is_empty() {
-        let app2 = app.clone();
-        std::thread::spawn(move || {
-            for delay in [400, 800, 1200, 2000, 3000] {
-                std::thread::sleep(std::time::Duration::from_millis(delay));
-                let _ = focus_window(app2.clone(), name.clone());
-            }
-        });
-    }
+    let app2 = app.clone();
+    std::thread::spawn(move || {
+        let _ = focus_window(app2, name, Some(true));
+    });
     Ok(())
 }
 
@@ -151,38 +146,75 @@ fn is_process_running(name: String) -> Result<bool, String> {
     }
 }
 
-/// Bring an existing window to the foreground by process name or title (Windows).
-/// AppActivate is not enough in a release build: Windows blocks it, and it only
-/// matches the window title. This finds the window by name or title and forces it
-/// in front with the topmost trick.
+/// Activate a window, not just raise it.
+/// `recent` also accepts the newest non-Goob window, which is how a .bat
+/// (Chrome) or a Steam game gets focus when the file name is not the process.
 #[tauri::command]
-fn focus_window(app: tauri::AppHandle, query: String) -> Result<(), String> {
+fn focus_window(app: tauri::AppHandle, query: String, recent: Option<bool>) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let _ = app;
         let q = query.replace('\'', "''");
+        let allow_recent = if recent.unwrap_or(false) { "1" } else { "0" };
         let script = format!(
             r#"
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 public class GoobFocus {{
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr p);
+  [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+  [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a, uint b, bool attach);
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+  [DllImport("user32.dll")] public static extern void SwitchToThisWindow(IntPtr hWnd, bool altTab);
 }}
 "@
+function Test-Skip($name) {{
+  $n = $name.ToLower()
+  return $n -like '*goob*' -or $n -eq 'powershell' -or $n -eq 'pwsh' -or $n -eq 'conhost' -or $n -eq 'cmd' -or $n -like 'steamwebhelper*' -or $n -like 'gameoverlay*'
+}}
+function Activate-Hwnd($hwnd) {{
+  if ([GoobFocus]::IsIconic($hwnd)) {{ [GoobFocus]::ShowWindow($hwnd, 9) | Out-Null }}
+  $fg = [GoobFocus]::GetForegroundWindow()
+  $fgThread = [GoobFocus]::GetWindowThreadProcessId($fg, [IntPtr]::Zero)
+  $cur = [GoobFocus]::GetCurrentThreadId()
+  [GoobFocus]::AttachThreadInput($cur, $fgThread, $true) | Out-Null
+  [GoobFocus]::keybd_event(0x12, 0x45, 1, [UIntPtr]::Zero)
+  [GoobFocus]::keybd_event(0x12, 0x45, 3, [UIntPtr]::Zero)
+  [GoobFocus]::BringWindowToTop($hwnd) | Out-Null
+  [GoobFocus]::SetForegroundWindow($hwnd) | Out-Null
+  [GoobFocus]::SwitchToThisWindow($hwnd, $true)
+  [GoobFocus]::AttachThreadInput($cur, $fgThread, $false) | Out-Null
+}}
 $q = '{q}'
-$proc = Get-Process | Where-Object {{
-  $_.MainWindowHandle -ne 0 -and (
-    $_.ProcessName -like "*$q*" -or $_.MainWindowTitle -like "*$q*"
-  )
-}} | Select-Object -First 1
-if (-not $proc) {{ exit 1 }}
-$hwnd = $proc.MainWindowHandle
-[GoobFocus]::ShowWindow($hwnd, 9) | Out-Null
-# Force above Goob, then drop topmost so it does not stay pinned.
-[GoobFocus]::SetWindowPos($hwnd, [IntPtr](-1), 0, 0, 0, 0, 0x0043) | Out-Null
-[GoobFocus]::SetWindowPos($hwnd, [IntPtr](-2), 0, 0, 0, 0, 0x0043) | Out-Null
+$allowRecent = '{allow_recent}'
+$deadline = (Get-Date).AddSeconds(8)
+do {{
+  $procs = @(Get-Process | Where-Object {{ $_.MainWindowHandle -ne 0 -and -not (Test-Skip $_.ProcessName) }})
+  $hit = $procs | Where-Object {{ $q -and ($_.ProcessName -like "*$q*" -or $_.MainWindowTitle -like "*$q*") }} | Select-Object -First 1
+  if (-not $hit -and $allowRecent -eq '1') {{
+    $cut = (Get-Date).AddSeconds(-20)
+    $fresh = foreach ($p in $procs) {{
+      if ($p.ProcessName -like 'steam') {{ continue }}
+      try {{ if ($p.StartTime -gt $cut) {{ $p }} }} catch {{}}
+    }}
+    $hit = $fresh | Sort-Object StartTime -Descending | Select-Object -First 1
+  }}
+  if ($hit) {{
+    Activate-Hwnd $hit.MainWindowHandle
+    Start-Sleep -Milliseconds 500
+    $again = Get-Process -Id $hit.Id -ErrorAction SilentlyContinue
+    if ($again -and $again.MainWindowHandle -ne 0) {{ Activate-Hwnd $again.MainWindowHandle }}
+    exit 0
+  }}
+  Start-Sleep -Milliseconds 300
+}} while ((Get-Date) -lt $deadline)
+exit 1
 "#
         );
         hidden_cmd("powershell")
@@ -193,7 +225,7 @@ $hwnd = $proc.MainWindowHandle
     }
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = (app, query);
+        let _ = (app, query, recent);
         Err("focus_window only supported on Windows".into())
     }
 }
@@ -415,13 +447,16 @@ fn discover_steam_libs() -> Result<Vec<std::path::PathBuf>, String> {
 }
 
 #[tauri::command]
-fn launch_steam(_app: tauri::AppHandle, app_id: String) -> Result<(), String> {
+fn launch_steam(app: tauri::AppHandle, app_id: String) -> Result<(), String> {
     let steam = steam_root().ok_or("Steam install not found")?;
     std::process::Command::new(steam.join("steam.exe"))
         .arg("-applaunch")
         .arg(&app_id)
         .spawn()
         .map_err(|e| e.to_string())?;
+    std::thread::spawn(move || {
+        let _ = focus_window(app, String::new(), Some(true));
+    });
     Ok(())
 }
 

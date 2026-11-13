@@ -290,7 +290,7 @@ del "%TEMP%\cursor_hide.lock"
 
 # Version 1.1.3 Changelog
 
-- 
+- Fixed an issue where apps would open unfocused
 
 ## Current Known Issues
 
